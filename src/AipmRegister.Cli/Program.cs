@@ -54,6 +54,7 @@ root.SetAction(async (parseResult, ct) =>
     host.Services.AddSingleton<IDeviceTcpSender, DeviceTcpSender>();
     host.Services.AddSingleton<IUserNotifier, ConsoleNotifier>();
 
+#if WINDOWS
     if (OperatingSystem.IsWindows())
     {
         host.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.Windows.WindowsWifiAdapter>();
@@ -62,6 +63,9 @@ root.SetAction(async (parseResult, ct) =>
     {
         host.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
     }
+#else
+    host.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
+#endif
     host.Services.AddSingleton<IRegistrationOrchestrator, RegistrationOrchestrator>();
 
     using var app = host.Build();

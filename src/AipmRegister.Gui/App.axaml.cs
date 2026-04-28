@@ -41,6 +41,7 @@ public partial class App : Application
         builder.Services.AddSingleton<UiNotifier>();
         builder.Services.AddSingleton<IUserNotifier>(sp => sp.GetRequiredService<UiNotifier>());
 
+#if WINDOWS
         if (OperatingSystem.IsWindows())
         {
             builder.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.Windows.WindowsWifiAdapter>();
@@ -49,6 +50,9 @@ public partial class App : Application
         {
             builder.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
         }
+#else
+        builder.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
+#endif
 
         builder.Services.AddSingleton<IRegistrationOrchestrator, RegistrationOrchestrator>();
         builder.Services.AddSingleton<MainViewModel>();
