@@ -1,0 +1,60 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: restore
+        run: dotnet restore
+      - name: build
+        run: dotnet build --no-restore --configuration Release
+      - name: test
+        run: dotnet test --no-build --configuration Release --logger "console;verbosity=normal"
+
+  publish:
+    name: publish (${{ matrix.rid }})
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64,    ext: .exe, suffix: windows-x64 }
+          - { os: ubuntu-latest,  rid: linux-x64,  ext: '',   suffix: linux-x64   }
+          - { os: macos-latest,   rid: osx-arm64,  ext: '',   suffix: macos-arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: publish CLI
+        shell: bash
+        run: |
+          dotnet publish src/AipmRegister.Cli \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o out/cli
+      - name: rename for release
+        shell: bash
+        run: |
+          mv "out/cli/AipmRegister.Cli${{ matrix.ext }}" "out/cli/aipm-register-${{ matrix.suffix }}${{ matrix.ext }}"
+          ls -la out/cli
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/cli/aipm-register-${{ matrix.suffix }}${{ matrix.ext }}
