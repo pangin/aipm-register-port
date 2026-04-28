@@ -1,0 +1,8 @@
+819B1407410B506D30B575F458F925F7E7227C5E2B633B48253CBC3F5922B0E0  AIPM_Register.exe
+
+File: AIPM_Register.exe (v1.5)
+Size: 241664 bytes
+Format: PE32 (x86 32-bit, Windows GUI), .NET Framework assembly
+Compile timestamp: 2025-05-15 04:18:55 UTC
+Captured for analysis: 2026-04-28
+Source path: C:\Users\pangi\Downloads\AIPM_Register_v1.5_250515\AIPM_Register.exe
