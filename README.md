@@ -115,32 +115,40 @@ Coming next: `AipmRegister.Gui` (Avalonia) and the Win32 `WlanClient`-backed
 ## Try it
 
 ### Pre-built binaries
-Download the latest [Release](https://github.com/pangin/aipm-register-port/releases) — three single-file binaries:
-- `aipm-register-windows-x64.exe`
-- `aipm-register-linux-x64`
-- `aipm-register-macos-arm64`
+Download the latest [Release](https://github.com/pangin/aipm-register-port/releases) — six self-contained artifacts:
+
+| Artifact | Form | OS |
+|---|---|---|
+| `aipm-register-cli-windows-x64.exe`        | single-file `.exe` | Windows |
+| `aipm-register-cli-linux-x64`              | single-file ELF    | Linux   |
+| `aipm-register-cli-macos-arm64`            | single-file Mach-O | macOS (Apple Silicon) |
+| `aipm-register-gui-windows-x64.exe`        | single-file GUI    | Windows |
+| `aipm-register-gui-linux-x64`              | single-file GUI    | Linux   |
+| `aipm-register-gui-macos-arm64.app.zip`    | **`.app` bundle**  | macOS (Apple Silicon) — extract & drop into /Applications |
 
 ### From source
 ```bash
 git clone https://github.com/pangin/aipm-register-port.git
 cd aipm-register-port
-dotnet test                                  # run unit tests
-dotnet run --project src/AipmRegister.Cli -- --help
+dotnet test                                          # run unit tests
+dotnet run --project src/AipmRegister.Cli -- --help  # CLI
+dotnet run --project src/AipmRegister.Gui            # GUI
 ```
 
 ### CLI usage
 ```
-aipm-register \
+aipm-register-cli \
   --auth-code 12345678 \
   --device-hotspot-ssid DAWON_IRBD_AABBCC \
   --home-ssid MyHomeWifi \
   --home-password 'p@ss'
 ```
 
-For now the Wi-Fi steps are skipped (use the placeholder `NoopWifiAdapter`)
-so the CLI assumes you have manually joined the device hotspot. Replace the
-adapter with `WindowsWifiAdapter` (next commit) or `LinuxWifiAdapter` /
-`MacOsWifiAdapter` (follow-ups) for fully automated registration.
+On **Windows** the CLI/GUI uses `WindowsWifiAdapter` (Win32 wlanapi.dll
+via ManagedNativeWifi) for fully automated Wi-Fi handling. On **Linux**
+and **macOS** it falls back to `NoopWifiAdapter` — the user is expected
+to have already joined the device hotspot manually (Linux/macOS native
+adapters are tracked as future work).
 
 ---
 
@@ -148,16 +156,17 @@ adapter with `WindowsWifiAdapter` (next commit) or `LinuxWifiAdapter` /
 
 | Phase | What | Status |
 |---|---|---|
-| A | Capture sample, decompile with ILSpy | ✅ |
-| B | Class map, register flow, OS-abstraction plan | ✅ |
-| C | .NET 10 solution skeleton (Core / CLI / Tests) | ✅ |
-| D | Domain models with `System.Text.Json` | ✅ |
-| E | API client, TCP sender, Notifier, Orchestrator | ✅ |
-| F | xUnit + WireMock test suite (15 cases, CI-verified) | ✅ |
-| G | GitHub Actions: multi-OS test + tagged release | ✅ |
-| H | Win32 `IWifiAdapter` implementation | ⏳ |
-| I | Avalonia GUI (cross-platform) | ⏳ |
-| J | First tagged release `v0.1.0` | ⏳ |
+| A | Capture sample, decompile with ILSpy            | ✅ |
+| B | Class map, register flow, OS-abstraction plan   | ✅ |
+| C | .NET 10 solution skeleton (Core / CLI / Tests)  | ✅ |
+| D | Domain models with `System.Text.Json`           | ✅ |
+| E | API client, TCP sender, Notifier, Orchestrator  | ✅ |
+| F | xUnit + WireMock tests (15 cases, CI-verified)  | ✅ |
+| G | GitHub Actions: multi-OS test + tagged release  | ✅ |
+| H | Win32 `IWifiAdapter` (ManagedNativeWifi)        | ✅ — `v0.2.0` |
+| I | Avalonia GUI + macOS `.app` bundle              | ✅ — `v0.3.0` |
+| J | Linux / macOS native `IWifiAdapter`             | ⏳ |
+| K | Native AOT (Avalonia compatibility check)       | ⏳ |
 
 ---
 
