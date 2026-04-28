@@ -76,7 +76,7 @@ public sealed class RegisterApiClient : IRegisterApiClient
         return (ClassifyOutcome(response.StatusCode, raw), raw);
     }
 
-    internal static ControlCheckOutcome ClassifyOutcome(HttpStatusCode status, string raw)
+    public static ControlCheckOutcome ClassifyOutcome(HttpStatusCode status, string raw)
     {
         var compact = raw.Replace(" ", string.Empty).ToUpperInvariant();
 
