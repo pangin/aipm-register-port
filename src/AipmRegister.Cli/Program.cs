@@ -53,7 +53,15 @@ root.SetAction(async (parseResult, ct) =>
     host.Services.AddHttpClient<IRegisterApiClient, RegisterApiClient>();
     host.Services.AddSingleton<IDeviceTcpSender, DeviceTcpSender>();
     host.Services.AddSingleton<IUserNotifier, ConsoleNotifier>();
-    host.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
+
+    if (OperatingSystem.IsWindows())
+    {
+        host.Services.AddSingleton<IWifiAdapter, AipmRegister.Cli.Wifi.Windows.WindowsWifiAdapter>();
+    }
+    else
+    {
+        host.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
+    }
     host.Services.AddSingleton<IRegistrationOrchestrator, RegistrationOrchestrator>();
 
     using var app = host.Build();

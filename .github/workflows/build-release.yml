@@ -55,8 +55,8 @@ jobs:
       - name: rename for release
         shell: bash
         run: |
-          mv "out/cli/AipmRegister.Cli${{ matrix.ext }}" "out/cli/aipm-register-${{ matrix.suffix }}${{ matrix.ext }}"
+          mv "out/cli/AipmRegister.Cli${{ matrix.ext }}" "out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}"
           ls -la out/cli
       - uses: softprops/action-gh-release@v2
         with:
-          files: out/cli/aipm-register-${{ matrix.suffix }}${{ matrix.ext }}
+          files: out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}
