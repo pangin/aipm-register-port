@@ -33,15 +33,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, rid: win-x64,    ext: .exe, suffix: windows-x64 }
-          - { os: ubuntu-latest,  rid: linux-x64,  ext: '',   suffix: linux-x64   }
-          - { os: macos-latest,   rid: osx-arm64,  ext: '',   suffix: macos-arm64 }
+          - { os: windows-latest, rid: win-x64,    ext: .exe, suffix: windows-x64,  is_mac: false }
+          - { os: ubuntu-latest,  rid: linux-x64,  ext: '',   suffix: linux-x64,    is_mac: false }
+          - { os: macos-latest,   rid: osx-arm64,  ext: '',   suffix: macos-arm64,  is_mac: true  }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      # ---------- CLI ----------
       - name: publish CLI
         shell: bash
         run: |
@@ -52,11 +54,85 @@ jobs:
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
             -o out/cli
-      - name: rename for release
+          mv "out/cli/AipmRegister.Cli${{ matrix.ext }}" \
+             "out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}"
+          ls -la out/cli
+
+      # ---------- GUI ----------
+      - name: publish GUI
         shell: bash
         run: |
-          mv "out/cli/AipmRegister.Cli${{ matrix.ext }}" "out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}"
-          ls -la out/cli
-      - uses: softprops/action-gh-release@v2
+          dotnet publish src/AipmRegister.Gui \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -o out/gui
+          ls -la out/gui
+
+      - name: rename GUI (non-macOS)
+        if: matrix.is_mac == false
+        shell: bash
+        run: |
+          mv "out/gui/AipmRegister.Gui${{ matrix.ext }}" \
+             "out/gui/aipm-register-gui-${{ matrix.suffix }}${{ matrix.ext }}"
+
+      - name: bundle GUI as .app (macOS)
+        if: matrix.is_mac == true
+        shell: bash
+        run: |
+          BUNDLE="out/gui/AipmRegister.app"
+          mkdir -p "$BUNDLE/Contents/MacOS"
+          mkdir -p "$BUNDLE/Contents/Resources"
+
+          # Move every published artifact into the .app bundle's MacOS dir.
+          # The single-file binary is the launchable; native libs were
+          # extracted by IncludeNativeLibrariesForSelfExtract=false earlier
+          # but for GUIs Avalonia ships a few sidecars regardless.
+          cp -R out/gui/AipmRegister.Gui "$BUNDLE/Contents/MacOS/AipmRegister"
+          chmod +x "$BUNDLE/Contents/MacOS/AipmRegister"
+
+          # Minimal Info.plist (no icon yet — can be added later).
+          cat > "$BUNDLE/Contents/Info.plist" << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleDevelopmentRegion</key>      <string>en</string>
+            <key>CFBundleExecutable</key>             <string>AipmRegister</string>
+            <key>CFBundleIdentifier</key>             <string>com.pangin.aipmregister</string>
+            <key>CFBundleInfoDictionaryVersion</key>  <string>6.0</string>
+            <key>CFBundleName</key>                   <string>aipm-register</string>
+            <key>CFBundlePackageType</key>            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>     <string>1.0</string>
+            <key>CFBundleVersion</key>                <string>1</string>
+            <key>NSHighResolutionCapable</key>        <true/>
+            <key>LSMinimumSystemVersion</key>         <string>11.0</string>
+          </dict>
+          </plist>
+          PLIST
+
+          # Zip the .app so it survives the GitHub Releases upload (which
+          # treats directories as files only via tarballs/zips).
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$BUNDLE" \
+            "out/gui/aipm-register-gui-${{ matrix.suffix }}.app.zip"
+          ls -la out/gui
+
+      # ---------- Upload ----------
+      - name: upload (CLI + non-macOS GUI)
+        if: matrix.is_mac == false
+        uses: softprops/action-gh-release@v2
         with:
-          files: out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}
+          files: |
+            out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}
+            out/gui/aipm-register-gui-${{ matrix.suffix }}${{ matrix.ext }}
+
+      - name: upload (CLI + macOS .app.zip)
+        if: matrix.is_mac == true
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            out/cli/aipm-register-cli-${{ matrix.suffix }}
+            out/gui/aipm-register-gui-${{ matrix.suffix }}.app.zip

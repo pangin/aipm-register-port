@@ -1,0 +1,80 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:AipmRegister.Gui.ViewModels"
+        xmlns:notif="using:AipmRegister.Gui.Notification"
+        x:Class="AipmRegister.Gui.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Width="900" Height="640"
+        Title="aipm-register — DAWON IoT device registrar"
+        WindowStartupLocation="CenterScreen">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">
+
+    <!-- Header -->
+    <StackPanel Grid.Row="0" Spacing="2" Margin="0,0,0,12">
+      <TextBlock Text="aipm-register"
+                 FontSize="22" FontWeight="Bold" />
+      <TextBlock Text="Reverse-engineered, modernized port of AIPM_Register.exe (.NET FW 3.5 → .NET 10)"
+                 FontSize="12" Opacity="0.7" />
+    </StackPanel>
+
+    <!-- Input form -->
+    <Grid Grid.Row="1" ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,12">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Auth code (8 digits)"     VerticalAlignment="Center" Margin="0,4" />
+      <TextBox  Grid.Row="0" Grid.Column="1" Text="{Binding AuthCode}"        PlaceholderText="12345678" MaxLength="8" Margin="0,4" />
+
+      <TextBlock Grid.Row="1" Grid.Column="0" Text="Device hotspot SSID"      VerticalAlignment="Center" Margin="0,4" />
+      <TextBox  Grid.Row="1" Grid.Column="1" Text="{Binding DeviceHotspotSsid}" PlaceholderText="DAWON_IRBD_xxxx or DWD-yyyy" Margin="0,4" />
+
+      <TextBlock Grid.Row="2" Grid.Column="0" Text="Device hotspot password"  VerticalAlignment="Center" Margin="0,4" />
+      <TextBox  Grid.Row="2" Grid.Column="1" Text="{Binding DeviceHotspotPassword}" PasswordChar="*" Margin="0,4" />
+
+      <TextBlock Grid.Row="3" Grid.Column="0" Text="Home Wi-Fi SSID"          VerticalAlignment="Center" Margin="0,4" />
+      <TextBox  Grid.Row="3" Grid.Column="1" Text="{Binding HomeSsid}"        PlaceholderText="Your home Wi-Fi name" Margin="0,4" />
+
+      <TextBlock Grid.Row="4" Grid.Column="0" Text="Home Wi-Fi password"      VerticalAlignment="Center" Margin="0,4" />
+      <TextBox  Grid.Row="4" Grid.Column="1" Text="{Binding HomePassword}"    PasswordChar="*" Margin="0,4" />
+
+      <TextBlock Grid.Row="5" Grid.Column="0" Text="Device TCP host"          VerticalAlignment="Center" Margin="0,4" />
+      <TextBox  Grid.Row="5" Grid.Column="1" Text="{Binding DeviceTcpHost}"   Margin="0,4" />
+
+      <TextBlock Grid.Row="6" Grid.Column="0" Text="Device TCP port"          VerticalAlignment="Center" Margin="0,4" />
+      <NumericUpDown Grid.Row="6" Grid.Column="1" Value="{Binding DeviceTcpPort}" Minimum="1" Maximum="65535" Margin="0,4" />
+
+      <TextBlock Grid.Row="7" Grid.Column="0" Text="Polls × interval (s)"     VerticalAlignment="Center" Margin="0,4" />
+      <Grid Grid.Row="7" Grid.Column="1" ColumnDefinitions="*,16,*" Margin="0,4">
+        <NumericUpDown Grid.Column="0" Value="{Binding MaxAttempts}" Minimum="1" Maximum="200" />
+        <NumericUpDown Grid.Column="2" Value="{Binding PollSeconds}" Minimum="1" Maximum="60" />
+      </Grid>
+    </Grid>
+
+    <!-- Buttons -->
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+      <Button Content="Register"
+              Command="{Binding RegisterCommand}"
+              IsDefault="True" Padding="14,8" />
+      <Button Content="Cancel"
+              Command="{Binding CancelCommand}"
+              Padding="14,8" />
+      <ProgressBar IsIndeterminate="True"
+                   IsVisible="{Binding IsBusy}"
+                   Width="200" VerticalAlignment="Center" Margin="8,0" />
+      <TextBlock Text="{Binding ResultStatus}" VerticalAlignment="Center" Margin="8,0,0,0"
+                 FontWeight="SemiBold" Opacity="0.8" />
+    </StackPanel>
+
+    <!-- Logs -->
+    <Border Grid.Row="3" BorderThickness="1" BorderBrush="#444" CornerRadius="4" Padding="0">
+      <ListBox ItemsSource="{Binding Logs}" Background="Transparent">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="notif:LogEntry">
+            <TextBlock Text="{Binding Display}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+
+    <!-- Footer / result -->
+    <TextBlock Grid.Row="4" Text="{Binding ResultMessage}" Margin="0,8,0,0"
+               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11" TextWrapping="Wrap" />
+  </Grid>
+</Window>

@@ -56,7 +56,7 @@ root.SetAction(async (parseResult, ct) =>
 
     if (OperatingSystem.IsWindows())
     {
-        host.Services.AddSingleton<IWifiAdapter, AipmRegister.Cli.Wifi.Windows.WindowsWifiAdapter>();
+        host.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.Windows.WindowsWifiAdapter>();
     }
     else
     {

@@ -3,7 +3,7 @@ using AipmRegister.Core.Wifi;
 using ManagedNativeWifi;
 using Microsoft.Extensions.Logging;
 
-namespace AipmRegister.Cli.Wifi.Windows;
+namespace AipmRegister.Wifi.Windows;
 
 /// Windows-only IWifiAdapter implementation backed by ManagedNativeWifi
 /// (which wraps wlanapi.dll). Replaces the inline P/Invoke calls scattered

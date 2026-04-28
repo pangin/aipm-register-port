@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/AipmRegister.Cli/AipmRegister.Cli.csproj" />
     <Project Path="src/AipmRegister.Core/AipmRegister.Core.csproj" />
+    <Project Path="src/AipmRegister.Gui/AipmRegister.Gui.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AipmRegister.Core.Tests/AipmRegister.Core.Tests.csproj" />
