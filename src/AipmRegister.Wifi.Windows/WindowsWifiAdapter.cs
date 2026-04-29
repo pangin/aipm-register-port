@@ -31,21 +31,13 @@ public sealed class WindowsWifiAdapter : IWifiAdapter
             var ssid = bss.Ssid.ToString();
             if (string.IsNullOrWhiteSpace(ssid)) continue;
 
-            var band = bss.Frequency switch
-            {
-                >= 5000 and < 6000 => "5G",
-                >= 2400 and < 2500 => "2.4G",
-                >= 6000            => "6G",
-                _                  => "?",
-            };
-
             // BssNetworkPack does not expose authentication info; we cross
             // it with AvailableNetworkPack lookups in MapSecurity.
             result.Add(new WifiNetwork(
                 Ssid:          ssid,
                 SignalQuality: (int)bss.LinkQuality,
                 Security:      LookupSecurity(ssid),
-                Band:          band));
+                Band:          WifiBandClassifier.FromFrequencyMhz((int)bss.Frequency)));
         }
         return Task.FromResult<IReadOnlyList<WifiNetwork>>(result);
     }

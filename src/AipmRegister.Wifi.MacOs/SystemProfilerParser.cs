@@ -45,7 +45,7 @@ public static class SystemProfilerParser
                         Ssid:          ssid!,
                         SignalQuality: SignalNoiseToQuality(signalNoise),
                         Security:      MapSecurity(security),
-                        Band:          ChannelToBand(channel)));
+                        Band:          WifiBandClassifier.FromChannel(channel)));
                 }
             }
         }
@@ -95,31 +95,6 @@ public static class SystemProfilerParser
         if (lower.Contains("wep"))  return WifiSecurity.Wep;
         if (lower.Contains("none") || lower.Contains("open")) return WifiSecurity.Open;
         return WifiSecurity.Open;
-    }
-
-    /// Channel 1-14 -> 2.4G, 32-177 -> 5G, 1-233 -> 6G (overlap, but
-    /// system_profiler tags 6E channels with " (6 GHz)" suffix in newer
-    /// macOS versions, so we sniff for that first).
-    public static string ChannelToBand(string? channel)
-    {
-        if (string.IsNullOrEmpty(channel)) return "?";
-        if (channel.Contains("6 GHz", StringComparison.OrdinalIgnoreCase)) return "6G";
-        if (channel.Contains("5 GHz", StringComparison.OrdinalIgnoreCase)) return "5G";
-        if (channel.Contains("2.4",   StringComparison.OrdinalIgnoreCase)) return "2.4G";
-
-        // Numeric channel only — fall back to canonical bands.
-        var token = channel.Split(',', '(', ' ')[0].Trim();
-        if (int.TryParse(token, out var n))
-        {
-            return n switch
-            {
-                >= 1 and <= 14   => "2.4G",
-                >= 32 and <= 196 => "5G",
-                >= 1 and <= 233  => "6G",     // 6 GHz numeric channels overlap with 2.4G
-                _                => "?",
-            };
-        }
-        return "?";
     }
 
     /// "-45 dBm / -90 dBm" → 100. We treat the first number (signal) the

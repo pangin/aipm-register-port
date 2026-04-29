@@ -36,7 +36,7 @@ public static class WpaScanResultParser
                 Ssid:          ssid,
                 SignalQuality: ClampSignalToQuality(signal),
                 Security:      ClassifySecurity(flags),
-                Band:          ClassifyBand(freq)));
+                Band:          WifiBandClassifier.FromFrequencyMhz(freq)));
         }
 
         return list;
@@ -50,14 +50,6 @@ public static class WpaScanResultParser
         if (dbm <= -100) return 0;
         return 2 * (dbm + 100);
     }
-
-    public static string ClassifyBand(int freqMhz) => freqMhz switch
-    {
-        >= 2400 and < 2500 => "2.4G",
-        >= 5000 and < 6000 => "5G",
-        >= 6000            => "6G",
-        _                  => "?",
-    };
 
     public static WifiSecurity ClassifySecurity(string flags)
     {

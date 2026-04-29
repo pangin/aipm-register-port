@@ -92,7 +92,7 @@ public sealed class SystemProfilerParserTests
     [InlineData("",                    "?")]
     public void Channel_Suffix_Beats_Numeric_For_6GHz(string raw, string expected)
     {
-        Assert.Equal(expected, SystemProfilerParser.ChannelToBand(raw));
+        Assert.Equal(expected, AipmRegister.Core.Wifi.WifiBandClassifier.FromChannel(raw));
     }
 
     [Fact]
