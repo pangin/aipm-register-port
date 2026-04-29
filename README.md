@@ -107,8 +107,19 @@ sequenceDiagram
 └──────────────────────────────────────────────────────────┘
 ```
 
-Coming next: `AipmRegister.Gui` (Avalonia) and the Win32 `WlanClient`-backed
-`IWifiAdapter` implementation.
+Avalonia GUI is structured as a **5-step wizard** that mirrors the
+original Windows app's flow:
+
+```
+Welcome → 1/5 Wi-Fi picker → 2/5 auth code → 3/5 product picker
+        → 4/5 device picker → 5/5 progress + result
+```
+
+ViewModels: Welcome / WifiPicker / AuthCode / ProductPicker / DevicePicker
+/ Registering, each backed by a matching `*.axaml`. Korean and English
+labels live in `Localization/Strings.cs` and toggle via the header
+button. `ProductCatalog` carries all 15 SKUs recovered from the
+original (icons rendered as `StreamGeometry` paths, no PNGs).
 
 ---
 
@@ -165,8 +176,9 @@ adapters are tracked as future work).
 | G | GitHub Actions: multi-OS test + tagged release  | ✅ |
 | H | Win32 `IWifiAdapter` (ManagedNativeWifi)        | ✅ — `v0.2.0` |
 | I | Avalonia GUI + macOS `.app` bundle              | ✅ — `v0.3.0` |
-| J | Linux / macOS native `IWifiAdapter`             | ⏳ |
-| K | Native AOT (Avalonia compatibility check)       | ⏳ |
+| J | Original 5-step wizard + 15-SKU catalog + Ko/En | ✅ — `v0.4.0` |
+| K | Linux / macOS native `IWifiAdapter`             | ⏳ |
+| L | Native AOT (Avalonia compatibility check)       | ⏳ |
 
 ---
 
