@@ -54,10 +54,16 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
 
         // The device replies with its own SSID-style identifier; resolve via
         // the catalog so our model code matches what the cloud assigns.
-        var modelCode = string.IsNullOrWhiteSpace(reply)
+        var trimmedReply = reply?.Trim().Trim('"') ?? string.Empty;
+        var modelCode = string.IsNullOrEmpty(trimmedReply)
             ? picked.ModelCode
-            : ProductCatalog.ResolveModelCode(reply.Trim().Trim('"'), picked);
-        if (string.IsNullOrEmpty(modelCode)) modelCode = picked.ModelCode;
+            : ProductCatalog.ResolveModelCode(trimmedReply, picked);
+        if (string.IsNullOrEmpty(modelCode))
+        {
+            // Catalog had no matching SKU — preserve v0.3 behavior of using
+            // whatever the device reported back as the model.
+            modelCode = string.IsNullOrEmpty(trimmedReply) ? picked.ModelCode : trimmedReply;
+        }
 
         var deviceId = $"{_backend.Company}-{modelCode}-{mac}";
         _logger.LogInformation("Assembled deviceId={DeviceId} (model={Model}, mac={Mac})", deviceId, modelCode, mac);
