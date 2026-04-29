@@ -148,3 +148,89 @@
    - `IRegistrationOrchestrator` (위 4개를 엮은 워크플로우)
 3. **상태머신**: `m_6` 탭 인덱스 + `m_8`(폴링 카운터) + 타이머 4개 → 명시적 enum + Channel 기반 비동기 파이프라인
 4. **다국어 메시지**: 한국어 한정 메시지 → resource string 분리 (포트폴리오 영어 README 와 매칭)
+
+---
+
+## 10. 5-step Wizard Breakdown (v0.4 GUI 재구성용)
+
+원본은 `TablessControl` (frmMain.cs `TablessControl.cs`) + `m_6` 인덱스 (0~5) 로 5단계 위저드를 단일 창 안에서 전환. 각 단계 = `TabPage`, `m_6 = N; m_0.SelectedIndex = m_6` 으로 화면 이동.
+
+### 10.1 단계별 인덱스 + 전환 트리거
+| Index | 화면 | 전환 트리거 |
+|---|---|---|
+| 0 | 시작 (Welcome) | 앱 실행 |
+| 1 | (1/5) Wi-Fi 공유기 선택 | "시작" 클릭 (frmMain.cs:1095) |
+| 2 | (2/5) AIPM 앱 계정 연동 | "연결" 후 DNS 응답 OK (frmMain.cs:1822) |
+| 3 | (3/5) 등록할 제품 선택 | "다음(제품선택)" 클릭 (frmMain.cs:1988) |
+| 4 | (4/5) 등록할 장치 선택 | "다음(장치선택)" 클릭 (frmMain.cs:2047) |
+| 5 | (5/5) 등록 진행 | "등록" 후 Wi-Fi 연결 OK (frmMain.cs:2212) |
+| (back) 4 → 3 / 5 → 3 | "이전(제품선택)" 클릭 (frmMain.cs:2085) |
+| (back) 5 → 2 | "계정 연동 해제" 클릭 + 확인 (frmMain.cs:2422~2430) |
+
+### 10.2 Wi-Fi 색상 규칙 (frmMain.cs:1267~1275)
+```csharp
+if (band == "2G" && security in ["WPA-개인 TKIP", "WPA2-개인 AES", "WEP"])
+    listViewItem.BackColor = Color.GreenYellow;   // 디바이스가 연결 가능
+else
+    listViewItem.BackColor = Color.Orange;        // 5GHz 또는 미지원 보안 — 디바이스가 못 붙음
+```
+디바이스(IoT MCU)가 2.4GHz 만 지원해서, 5GHz AP 와 WPA3 같은 신형 보안은 모두 Orange 로 경고.
+
+### 10.3 제품 카탈로그 (frmMain.cs:652~681 + `c()` line 2010 + `_3()` line 2106)
+ListView `m_1` 에 고정 등록되는 15개 항목. PDF 가이드의 "8개 그리드" 는 마케팅용 간소화이고 실제 코드는 15 SKU.
+
+| Tag | ToolTip (제품명, 한국어) | 보조 prefix (m_c) | 디바이스 응답 모델 코드 |
+|---|---|---|---|
+| `S120`   | 스마트 플러그 (16A)        | `DWD-LS120` | `B530_W` |
+| `ES120`  | 스마트 플러그 (16A)        | `DWD-SS120` | `B550E_W` (또는 `B550E_SW` if `m_B==DWD-ES120S`) |
+| `LS130`  | 스마트 플러그 (16A)        | (없음)      | `B350_W` |
+| `S220`   | 스마트 멀티탭 (16A)        | (없음)      | `M130_W` |
+| `LS810`  | 지그비 허브                | (없음)      | `G200L_ZB` |
+| `S510`   | IR 리모컨                  | (없음)      | `R200_W` (또는 `R110_W` if `m_B==DWD-S510`) |
+| `S501`   | IR 리모컨                  | `DWD-S510`  | `R200_W` |
+| `S310`   | 분전반 단상 (50A)          | `DWD-S311`  | `P110_W` |
+| `S330`   | 분전반 3상 (100A)          | (없음)      | `P230_W` |
+| `S350`   | 분전반 3상 (400A)          | (없음)      | `P250_W` |
+| `S370`   | 분전반 3상 (800A)          | (없음)      | `P270_W` |
+| `ES120S` | 태양광 스마트 플러그 (16A) | `DWD-ES120` | `B550E_SW` |
+| `S600`   | 태양광 스마트 플러그 (10A) | (없음)      | `B400_W` (또는 `B400_SW` if `m_B==DWD-S600`) |
+| `S110`   | 스마트 플러그 (10A)        | `DWD-S600`  | `B400_WI` |
+| `S121`   | 일본향 스마트 플러그       | (없음)      | `B343_W` |
+
+**Hotspot SSID 필터**: 4/5 화면은 선택된 제품의 `m_B = "DWD-" + Tag` (주 prefix) + `m_c` (보조 prefix) 둘 중 하나로 시작하는 SSID 만 표시.
+
+**모델 코드 추출**: 디바이스가 TCP 5000 응답으로 보낸 페이로드의 첫 토큰을 `Split('_')[0].Substring(4)` 로 잘라 (예: `DWD-S120` → `S120`) `_3()` switch 로 매핑. 결과가 `device_id = "DAWONDNS-{model}-{mac}"` 의 model 부분.
+
+### 10.4 진행 표시 (5/5, frmMain.cs `f()` line 2253)
+- ProgressBar `m_0` 의 `Maximum` 은 폴링 한도 = 20 (frmMain.cs:1737 `m_8 > 24` 와 별도, 5/5 의 `++m_8 > 20` 흐름)
+- 각 폴링 tick 마다 `Value++`
+- 성공 응답 (`sv: true|false`) 시 `Value = Maximum` + Label `m_d.Text = "등록 완료"`
+- 실패 시 Label 빨간색 + 메시지박스 ("이미 등록된 장치입니다", "장치를 초기화 후...")
+
+### 10.5 핵심 한국어 문자열 (resx 시드)
+| 위치 | 한국어 |
+|---|---|
+| Welcome body | `원활한 연결을 위해\n유선 네트워크 연결을 끊고 시작해주세요.\n등록 과정중에 Wi-Fi가 여러번 재접속 됩니다.\n인터넷을 이용중이라면 작업을 끝내고 시작해주세요.\nAIPM 앱이 설치 및 가입된 모바일 기기를 준비해주세요.` (frmMain.cs:428) |
+| Welcome confirm | `무선 네트워크 연결이 끊어집니다. 시작하겠습니까?` |
+| Step1 title | `사용할 Wi-Fi 공유기 선택 (1/5)` |
+| Step2 title | `AIPM 앱 계정과 연동 (2/5)` |
+| Step2 hint | `AIPM 앱의 My page 화면에서 발급 버튼을 눌러 생성된 인증번호 8자리를 입력해주세요.` (frmMain.cs:631) |
+| Step2 next | `다음 (제품 선택)` |
+| Step3 title | `등록할 제품 선택 (3/5)` |
+| Step3 next | `다음 (장치 선택)` |
+| Step4 title | `등록할 장치 선택 (4/5)` |
+| Step4 prev | `이전 (제품 선택)` |
+| Step4 register | `등록` |
+| Step5 title | `등록 진행 (5/5)` |
+| Step5 done | `등록 완료` |
+| Step5 unbind | `계정 연동 해제` |
+| Common refresh | `새로 고침` |
+| Error: AlreadyRegistered | `이미 등록된 장치입니다.` (frmMain.cs:2361) |
+| Error: NotRegistered | `등록 실패 : 장치를 초기화 후 다시 등록해주세요.` (frmMain.cs:2369) |
+| Error: AuthExpired | `인증 유효시간이 초과되었습니다.\n앱에서 새 인증번호를 발급해주세요.` (frmMain.cs:2382) |
+| Error: AuthInvalid | `유효한 인증번호가 아닙니다.` (frmMain.cs:2402) |
+| Error: AuthFormat | `공백 없이 숫자 8자리를 입력해주세요.` (frmMain.cs:1035) |
+| Confirm: Unbind | `정말로 연동을 해제하겠습니까?` (frmMain.cs:2424) |
+| Confirm: Exit | `정말로 종료하겠습니까?` (frmMain.cs:2163) |
+
+이 표가 곧 `Strings.ko.resx` 의 시드.
