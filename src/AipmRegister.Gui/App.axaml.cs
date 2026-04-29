@@ -8,6 +8,7 @@ using AipmRegister.Gui.Notification;
 using AipmRegister.Gui.ViewModels;
 using AipmRegister.Gui.Views;
 using AipmRegister.Gui.Wifi;
+using AipmRegister.Gui.Wizard;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -55,6 +56,16 @@ public partial class App : Application
 #endif
 
         builder.Services.AddSingleton<IRegistrationOrchestrator, RegistrationOrchestrator>();
+
+        // Wizard state + each step ViewModel + the main shell ViewModel.
+        builder.Services.AddSingleton<WizardState>();
+        builder.Services.AddSingleton<IWizardNavigator>(sp => sp.GetRequiredService<MainViewModel>());
+        builder.Services.AddSingleton<WelcomeViewModel>();
+        builder.Services.AddSingleton<WifiPickerViewModel>();
+        builder.Services.AddSingleton<AuthCodeViewModel>();
+        builder.Services.AddSingleton<ProductPickerViewModel>();
+        builder.Services.AddSingleton<DevicePickerViewModel>();
+        builder.Services.AddSingleton<RegisteringViewModel>();
         builder.Services.AddSingleton<MainViewModel>();
 
         Host = builder.Build();
@@ -62,7 +73,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var vm = Host.Services.GetRequiredService<MainViewModel>();
-            desktop.MainWindow = new MainWindow(vm);
+            desktop.MainWindow = new MainWindow { DataContext = vm };
             desktop.Exit += (_, _) =>
             {
                 Host.Dispose();

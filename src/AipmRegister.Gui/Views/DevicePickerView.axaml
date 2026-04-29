@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AipmRegister.Gui.ViewModels"
+             xmlns:loc="using:AipmRegister.Gui.Localization"
+             x:Class="AipmRegister.Gui.Views.DevicePickerView"
+             x:DataType="vm:DevicePickerViewModel">
+  <Grid RowDefinitions="Auto,*,Auto,Auto,Auto" RowSpacing="8">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+      <TextBlock Grid.Column="0" FontWeight="SemiBold" FontSize="13"
+                 Text="{Binding [Step4.Title], Source={x:Static loc:L.Instance}}" />
+      <Button Grid.Column="1" Padding="10,3"
+              Command="{Binding BackCommand}"
+              Content="{Binding [Step4.PrevButton], Source={x:Static loc:L.Instance}}" />
+    </Grid>
+
+    <Border Grid.Row="1" BorderBrush="#444" BorderThickness="1" CornerRadius="2">
+      <ListBox ItemsSource="{Binding Devices}"
+               SelectedItem="{Binding Selected, Mode=TwoWay}"
+               Background="Transparent">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="vm:DeviceCandidate">
+            <Border Padding="6,3" CornerRadius="2" Background="#ADFF2F">
+              <Grid ColumnDefinitions="2*,Auto,Auto" ColumnSpacing="10">
+                <TextBlock Grid.Column="0" Foreground="Black" Text="{Binding Ssid}" />
+                <TextBlock Grid.Column="1" Foreground="Black" Width="120"
+                           Text="{Binding Mac}" />
+                <TextBlock Grid.Column="2" Foreground="Black" Width="40"
+                           Text="{Binding SignalQuality}" />
+              </Grid>
+            </Border>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+
+    <Button Grid.Row="2" HorizontalAlignment="Left" Padding="10,3"
+            Command="{Binding RefreshCommand}"
+            Content="{Binding [Step4.RefreshButton], Source={x:Static loc:L.Instance}}" />
+
+    <Grid Grid.Row="3" ColumnDefinitions="120,*">
+      <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                 Text="{Binding [Step4.SelectedProductLabel], Source={x:Static loc:L.Instance}}" />
+      <TextBox  Grid.Column="1" IsReadOnly="True"
+                Text="{Binding Selected.Ssid, Mode=OneWay}" />
+    </Grid>
+
+    <Button Grid.Row="4" HorizontalAlignment="Center" Padding="20,6"
+            Command="{Binding RegisterCommand}"
+            Content="{Binding [Step4.RegisterButton], Source={x:Static loc:L.Instance}}" />
+  </Grid>
+</UserControl>

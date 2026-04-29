@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AipmRegister.Gui.ViewModels"
+             xmlns:loc="using:AipmRegister.Gui.Localization"
+             x:Class="AipmRegister.Gui.Views.RegisteringView"
+             x:DataType="vm:RegisteringViewModel">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="14">
+    <TextBlock Grid.Row="0" FontWeight="SemiBold" FontSize="13"
+               Text="{Binding [Step5.Title], Source={x:Static loc:L.Instance}}" />
+
+    <!-- Yellow status banner -->
+    <Border Grid.Row="1" Padding="10,8" CornerRadius="2"
+            Background="#F4E08A" BorderBrush="#A09060" BorderThickness="1">
+      <TextBlock Foreground="Black" FontWeight="SemiBold"
+                 HorizontalAlignment="Center"
+                 Text="{Binding StatusText}" />
+    </Border>
+
+    <!-- Green progress bar -->
+    <ProgressBar Grid.Row="2" Height="22" CornerRadius="2"
+                 Foreground="#2EA043"
+                 Minimum="0"
+                 Maximum="{Binding ProgressMaximum}"
+                 Value="{Binding ProgressValue}" />
+
+    <!-- Filler -->
+    <Grid Grid.Row="3" />
+
+    <Grid Grid.Row="4" ColumnDefinitions="*,Auto,*" ColumnSpacing="14">
+      <Button Grid.Column="0" HorizontalAlignment="Right" Padding="20,6"
+              Command="{Binding BackCommand}"
+              Content="{Binding [Step5.PrevButton], Source={x:Static loc:L.Instance}}" />
+      <Button Grid.Column="2" HorizontalAlignment="Left" Padding="20,6"
+              Command="{Binding UnbindCommand}"
+              Content="{Binding [Step5.UnbindButton], Source={x:Static loc:L.Instance}}" />
+    </Grid>
+  </Grid>
+</UserControl>

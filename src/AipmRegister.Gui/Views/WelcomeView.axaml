@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AipmRegister.Gui.ViewModels"
+             xmlns:loc="using:AipmRegister.Gui.Localization"
+             x:Class="AipmRegister.Gui.Views.WelcomeView"
+             x:DataType="vm:WelcomeViewModel">
+  <StackPanel Spacing="16" HorizontalAlignment="Center" VerticalAlignment="Center">
+    <TextBlock FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"
+               Text="AI POWER MANAGER" Foreground="#3FA9F5" />
+    <TextBlock FontSize="13" Opacity="0.85" HorizontalAlignment="Center"
+               Text="Energy Saving Platform" />
+    <TextBlock FontSize="13" TextWrapping="Wrap"
+               TextAlignment="Center" MaxWidth="500"
+               Text="{Binding [Welcome.Body], Source={x:Static loc:L.Instance}}" />
+    <Button HorizontalAlignment="Center" Padding="40,8" FontSize="14"
+            Command="{Binding StartCommand}"
+            Content="{Binding [Welcome.StartButton], Source={x:Static loc:L.Instance}}" />
+  </StackPanel>
+</UserControl>
