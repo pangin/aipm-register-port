@@ -1,4 +1,5 @@
 using AipmRegister.Core.Models;
+using AipmRegister.Core.Wifi;
 
 namespace AipmRegister.Core.Orchestration;
 
@@ -10,9 +11,13 @@ namespace AipmRegister.Core.Orchestration;
 /// below; the all-in-one RunAsync remains for the CLI's headless flow.
 public interface IRegistrationOrchestrator
 {
-    /// Runs every step end-to-end (CLI flow, also used by tests).
+    /// Runs every step end-to-end (CLI flow, also used by tests). The
+    /// caller resolves the chosen <see cref="IWifiAdapter"/> via
+    /// <see cref="IWifiAdapterFactory"/> after enumerating + picking an
+    /// interface, then hands it in here.
     Task<RegistrationResult> RunAsync(
         RegistrationRequest request,
+        IWifiAdapter wifi,
         CancellationToken ct = default);
 
     /// Step 2/5 — POST v1/accounts/post/getPckey, parse the Account.

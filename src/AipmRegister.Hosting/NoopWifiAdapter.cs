@@ -3,11 +3,11 @@ using Microsoft.Extensions.Logging;
 
 namespace AipmRegister.Hosting;
 
-/// Placeholder Wi-Fi adapter that logs intent but performs no OS calls. Used
-/// as the fallback when the build target is a platform we don't ship a
-/// native adapter for, or when the runtime OS does not match the build's
-/// platform define (which lets the orchestrator's Wi-Fi calls become
-/// deterministic no-ops in those edge cases — useful for diagnostics).
+/// Placeholder Wi-Fi adapter that logs intent but performs no OS calls.
+/// Used as the fallback when the build target is a platform we don't ship
+/// a native adapter for, or when the runtime OS does not match the build's
+/// platform define — lets the orchestrator's Wi-Fi calls become
+/// deterministic no-ops in those edge cases (useful for diagnostics).
 internal sealed class NoopWifiAdapter : IWifiAdapter
 {
     private readonly ILogger<NoopWifiAdapter> _logger;
@@ -33,4 +33,30 @@ internal sealed class NoopWifiAdapter : IWifiAdapter
         _logger.LogDebug("Skipping disconnect from SSID={Ssid}.", ssid);
         return Task.CompletedTask;
     }
+}
+
+/// Enumerator that surfaces a single synthetic interface so the no-op
+/// pipeline still has something to "pick" — keeps the CLI/GUI flow
+/// uniform across supported and unsupported platforms.
+internal sealed class NoopWifiInterfaceEnumerator : IWifiInterfaceEnumerator
+{
+    private static readonly IReadOnlyList<WifiInterface> Single = new[]
+    {
+        new WifiInterface(Id: "noop", DisplayName: "No Wi-Fi adapter (no-op)"),
+    };
+
+    public Task<IReadOnlyList<WifiInterface>> EnumerateAsync(CancellationToken ct = default)
+        => Task.FromResult(Single);
+}
+
+/// Factory that returns a no-op adapter regardless of the requested
+/// interface — paired with <see cref="NoopWifiInterfaceEnumerator"/>.
+internal sealed class NoopWifiAdapterFactory : IWifiAdapterFactory
+{
+    private readonly NoopWifiAdapter _instance;
+
+    public NoopWifiAdapterFactory(ILogger<NoopWifiAdapter> logger) =>
+        _instance = new NoopWifiAdapter(logger);
+
+    public IWifiAdapter Create(WifiInterface iface) => _instance;
 }

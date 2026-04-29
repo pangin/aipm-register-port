@@ -41,27 +41,4 @@ internal static class NetworksetupRunner
         }
         return stdout;
     }
-
-    /// Parses `networksetup -listallhardwareports` to find the device name
-    /// (`enX`) of the Wi-Fi port.
-    public static string FindWifiInterfaceName(string listAllHardwarePortsOutput)
-    {
-        var lines = listAllHardwarePortsOutput.Split('\n');
-        for (var i = 0; i < lines.Length; i++)
-        {
-            var line = lines[i].Trim();
-            if (line.StartsWith("Hardware Port:", StringComparison.Ordinal)
-                && line.Contains("Wi-Fi", StringComparison.OrdinalIgnoreCase)
-                && i + 1 < lines.Length)
-            {
-                var next = lines[i + 1].Trim();
-                if (next.StartsWith("Device:", StringComparison.Ordinal))
-                {
-                    return next.Substring("Device:".Length).Trim();
-                }
-            }
-        }
-        throw new InvalidOperationException(
-            "No Wi-Fi hardware port found in `networksetup -listallhardwareports`.");
-    }
 }

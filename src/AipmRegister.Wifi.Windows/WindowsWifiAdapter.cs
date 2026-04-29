@@ -12,9 +12,15 @@ namespace AipmRegister.Wifi.Windows;
 public sealed class WindowsWifiAdapter : IWifiAdapter
 {
     private readonly ILogger<WindowsWifiAdapter> _logger;
+    private readonly Guid _interfaceId;
     private readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(20);
 
-    public WindowsWifiAdapter(ILogger<WindowsWifiAdapter> logger) => _logger = logger;
+    public WindowsWifiAdapter(WifiInterface iface, ILogger<WindowsWifiAdapter> logger)
+    {
+        _logger = logger;
+        _interfaceId = Guid.Parse(iface.Id);
+        _logger.LogInformation("Using Wi-Fi interface: {Iface}", iface.DisplayName);
+    }
 
     public Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken ct = default)
     {
@@ -46,14 +52,11 @@ public sealed class WindowsWifiAdapter : IWifiAdapter
 
     public async Task ConnectAsync(string ssid, string password, WifiSecurity security, CancellationToken ct = default)
     {
-        var iface = NativeWifi.EnumerateInterfaces().FirstOrDefault()
-            ?? throw new InvalidOperationException("No Wi-Fi interface found.");
-
         var profileXml = BuildWlanProfileXml(ssid, password, security);
         _logger.LogInformation("Installing WLAN profile for SSID={Ssid}", ssid);
 
         var installed = NativeWifi.SetProfile(
-            interfaceId: iface.Id,
+            interfaceId: _interfaceId,
             profileType: ProfileType.AllUser,
             profileXml: profileXml,
             profileSecurity: null,
@@ -65,7 +68,7 @@ public sealed class WindowsWifiAdapter : IWifiAdapter
         }
 
         var connected = await NativeWifi.ConnectNetworkAsync(
-            interfaceId: iface.Id,
+            interfaceId: _interfaceId,
             profileName: ssid,
             bssType: BssType.Any,
             timeout: _connectTimeout,
@@ -84,10 +87,7 @@ public sealed class WindowsWifiAdapter : IWifiAdapter
     {
         try
         {
-            foreach (var iface in NativeWifi.EnumerateInterfaces())
-            {
-                NativeWifi.DeleteProfile(iface.Id, ssid);
-            }
+            NativeWifi.DeleteProfile(_interfaceId, ssid);
             _logger.LogInformation("Removed WLAN profile for SSID={Ssid}", ssid);
         }
         catch (Exception ex)

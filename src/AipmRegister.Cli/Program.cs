@@ -4,6 +4,7 @@ using AipmRegister.Core.Devices;
 using AipmRegister.Core.Models;
 using AipmRegister.Core.Notification;
 using AipmRegister.Core.Orchestration;
+using AipmRegister.Core.Wifi;
 using AipmRegister.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -58,8 +59,21 @@ root.SetAction(async (parseResult, ct) =>
 
     using var app = host.Build();
     var orchestrator = app.Services.GetRequiredService<IRegistrationOrchestrator>();
+    var enumerator   = app.Services.GetRequiredService<IWifiInterfaceEnumerator>();
+    var factory      = app.Services.GetRequiredService<IWifiAdapterFactory>();
 
-    var result = await orchestrator.RunAsync(request, ct);
+    var ifaces = await enumerator.EnumerateAsync(ct);
+    if (ifaces.Count == 0)
+    {
+        Console.Error.WriteLine("No wireless interface found on this host.");
+        return 2;
+    }
+    // Phase 3 will add a `--wifi-interface <id>` flag here. For now, fall
+    // back to the first interface — preserves the previous behavior.
+    var picked = ifaces[0];
+    var wifi   = factory.Create(picked);
+
+    var result = await orchestrator.RunAsync(request, wifi, ct);
 
     Console.WriteLine();
     Console.WriteLine("=== result ===");

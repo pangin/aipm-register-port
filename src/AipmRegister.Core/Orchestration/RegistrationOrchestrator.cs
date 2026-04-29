@@ -12,7 +12,6 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
 {
     private readonly IRegisterApiClient _api;
     private readonly IDeviceTcpSender _tcp;
-    private readonly IWifiAdapter _wifi;
     private readonly IUserNotifier _notifier;
     private readonly BackendOptions _backend;
     private readonly ILogger<RegistrationOrchestrator> _logger;
@@ -20,14 +19,12 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
     public RegistrationOrchestrator(
         IRegisterApiClient api,
         IDeviceTcpSender tcp,
-        IWifiAdapter wifi,
         IUserNotifier notifier,
         BackendOptions backend,
         ILogger<RegistrationOrchestrator> logger)
     {
         _api = api;
         _tcp = tcp;
-        _wifi = wifi;
         _notifier = notifier;
         _backend = backend;
         _logger = logger;
@@ -107,7 +104,7 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
 
     // ----- All-in-one (CLI) -------------------------------------------------
 
-    public async Task<RegistrationResult> RunAsync(RegistrationRequest request, CancellationToken ct = default)
+    public async Task<RegistrationResult> RunAsync(RegistrationRequest request, IWifiAdapter wifi, CancellationToken ct = default)
     {
         var pollInterval = request.PollInterval ?? TimeSpan.FromSeconds(2);
 
@@ -133,7 +130,7 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         _notifier.Progress("wifi", $"Connecting to device hotspot \"{request.DeviceHotspotSsid}\"...");
         try
         {
-            await _wifi.ConnectAsync(
+            await wifi.ConnectAsync(
                 request.DeviceHotspotSsid,
                 request.DeviceHotspotPassword,
                 WifiSecurity.Open,
@@ -167,9 +164,9 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
                 return new RegistrationResult(RegistrationStatus.DeviceTcpFailed, account.UserId, null, ex.Message);
             }
 
-            await _wifi.DisconnectAndForgetAsync(request.DeviceHotspotSsid, ct);
+            await wifi.DisconnectAndForgetAsync(request.DeviceHotspotSsid, ct);
             _notifier.Progress("wifi", $"Rejoining home network \"{request.HomeSsid}\"...");
-            await _wifi.ConnectAsync(request.HomeSsid, request.HomePassword, WifiSecurity.Wpa2Personal, ct);
+            await wifi.ConnectAsync(request.HomeSsid, request.HomePassword, WifiSecurity.Wpa2Personal, ct);
 
             _notifier.Progress("poll", "Waiting for cloud to register the device...");
             ControlCheckTick? terminal = null;

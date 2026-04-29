@@ -14,10 +14,10 @@ public sealed class LinuxWifiAdapter : IWifiAdapter
     private readonly ILogger<LinuxWifiAdapter> _logger;
     private readonly string _interfaceName;
 
-    public LinuxWifiAdapter(ILogger<LinuxWifiAdapter> logger)
+    public LinuxWifiAdapter(WifiInterface iface, ILogger<LinuxWifiAdapter> logger)
     {
         _logger = logger;
-        _interfaceName = WirelessInterfaceFinder.Find();
+        _interfaceName = iface.Id;
         _logger.LogInformation("Using wireless interface: {Iface}", _interfaceName);
     }
 

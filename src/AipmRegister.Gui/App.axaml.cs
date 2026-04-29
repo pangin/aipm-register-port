@@ -43,6 +43,8 @@ public partial class App : Application
         builder.Services.AddSingleton<IUserNotifier>(sp => sp.GetRequiredService<UiNotifier>());
 
         builder.Services.AddAipmWifiPlatform();
+        // Phase 4 will remove this — once WifiPicker drives selection.
+        builder.Services.AddAipmDefaultWifiAdapterShim();
 
         builder.Services.AddSingleton<IRegistrationOrchestrator, RegistrationOrchestrator>();
 

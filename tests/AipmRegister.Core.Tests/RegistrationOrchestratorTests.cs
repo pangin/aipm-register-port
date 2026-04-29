@@ -18,7 +18,7 @@ public sealed class RegistrationOrchestratorTests
             api: new StubApi(getPcKey: _ => Task.FromResult<Account?>(null)),
             notifier: notifier);
 
-        var result = await sut.RunAsync(SampleRequest());
+        var result = await sut.RunAsync(SampleRequest(), new StubWifi());
 
         Assert.Equal(RegistrationStatus.AuthCodeInvalidOrExpired, result.Status);
         Assert.Contains(notifier.Warnings, w => w.Contains("invalid or expired", StringComparison.OrdinalIgnoreCase));
@@ -34,7 +34,7 @@ public sealed class RegistrationOrchestratorTests
                 controlCheck:(_, _) => Task.FromResult((ControlCheckOutcome.Success, "raw"))),
             tcp: new StubTcp(reply: "MODEL_X"));
 
-        var result = await sut.RunAsync(SampleRequest());
+        var result = await sut.RunAsync(SampleRequest(), new StubWifi());
 
         Assert.Equal(RegistrationStatus.Succeeded, result.Status);
         Assert.Equal("u1", result.UserId);
@@ -52,7 +52,7 @@ public sealed class RegistrationOrchestratorTests
                 controlCheck:(_, _) => Task.FromResult((ControlCheckOutcome.AlreadyRegistered, "STATUSERROR"))),
             tcp: new StubTcp(reply: "MODEL_X"));
 
-        var result = await sut.RunAsync(SampleRequest());
+        var result = await sut.RunAsync(SampleRequest(), new StubWifi());
         Assert.Equal(RegistrationStatus.AlreadyRegistered, result.Status);
     }
 
@@ -64,7 +64,7 @@ public sealed class RegistrationOrchestratorTests
             api: new StubApi(getPcKey: _ => Task.FromResult<Account?>(account)),
             tcp: new StubTcp(throws: new IOException("connection refused")));
 
-        var result = await sut.RunAsync(SampleRequest());
+        var result = await sut.RunAsync(SampleRequest(), new StubWifi());
         Assert.Equal(RegistrationStatus.DeviceTcpFailed, result.Status);
         Assert.Contains("connection refused", result.Message);
     }
@@ -80,13 +80,11 @@ public sealed class RegistrationOrchestratorTests
     private static RegistrationOrchestrator BuildSut(
         IRegisterApiClient? api = null,
         IDeviceTcpSender? tcp = null,
-        IWifiAdapter? wifi = null,
         IUserNotifier? notifier = null)
     {
         return new RegistrationOrchestrator(
             api ?? new StubApi(),
             tcp ?? new StubTcp(reply: "MODEL_X"),
-            wifi ?? new StubWifi(),
             notifier ?? new TestNotifier(),
             new BackendOptions(),
             NullLogger<RegistrationOrchestrator>.Instance);
