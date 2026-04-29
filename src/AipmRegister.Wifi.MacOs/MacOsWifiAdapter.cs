@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using AipmRegister.Core.Process;
 using AipmRegister.Core.Wifi;
 using Microsoft.Extensions.Logging;
 
@@ -11,11 +12,13 @@ namespace AipmRegister.Wifi.MacOs;
 [SupportedOSPlatform("macos")]
 public sealed class MacOsWifiAdapter : IWifiAdapter
 {
+    private readonly IProcessRunner _processRunner;
     private readonly ILogger<MacOsWifiAdapter> _logger;
     private readonly string _interfaceName;
 
-    public MacOsWifiAdapter(WifiInterface iface, ILogger<MacOsWifiAdapter> logger)
+    public MacOsWifiAdapter(WifiInterface iface, IProcessRunner processRunner, ILogger<MacOsWifiAdapter> logger)
     {
+        _processRunner = processRunner;
         _logger = logger;
         _interfaceName = iface.Id;
         _logger.LogInformation("Using Wi-Fi interface: {Iface}", _interfaceName);
@@ -23,7 +26,7 @@ public sealed class MacOsWifiAdapter : IWifiAdapter
 
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken ct = default)
     {
-        var raw = await NetworksetupRunner.RunSystemProfilerAsync(ct);
+        var raw = await NetworksetupRunner.RunSystemProfilerAsync(_processRunner, ct);
         return SystemProfilerParser.Parse(raw);
     }
 
@@ -33,7 +36,7 @@ public sealed class MacOsWifiAdapter : IWifiAdapter
             ? new[] { "-setairportnetwork", _interfaceName, ssid }
             : new[] { "-setairportnetwork", _interfaceName, ssid, password };
 
-        var output = await NetworksetupRunner.RunAsync(args, ct);
+        var output = await NetworksetupRunner.RunAsync(_processRunner, args, ct);
         if (output.Contains("Could not", StringComparison.OrdinalIgnoreCase)
             || output.Contains("Failed",  StringComparison.OrdinalIgnoreCase)
             || output.Contains("error",   StringComparison.OrdinalIgnoreCase))
@@ -47,7 +50,7 @@ public sealed class MacOsWifiAdapter : IWifiAdapter
     {
         try
         {
-            await NetworksetupRunner.RunAsync(
+            await NetworksetupRunner.RunAsync(_processRunner,
                 new[] { "-removepreferredwirelessnetwork", _interfaceName, ssid }, ct);
             _logger.LogInformation("Removed preferred network for SSID={Ssid}", ssid);
         }

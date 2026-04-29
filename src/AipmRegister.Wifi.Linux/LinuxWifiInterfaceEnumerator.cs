@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using System.Runtime.Versioning;
+using AipmRegister.Core.Process;
 using AipmRegister.Core.Wifi;
 
 namespace AipmRegister.Wifi.Linux;
@@ -19,7 +19,11 @@ namespace AipmRegister.Wifi.Linux;
 [SupportedOSPlatform("linux")]
 public sealed class LinuxWifiInterfaceEnumerator : IWifiInterfaceEnumerator
 {
-    public Task<IReadOnlyList<WifiInterface>> EnumerateAsync(CancellationToken ct = default)
+    private readonly IProcessRunner _processRunner;
+
+    public LinuxWifiInterfaceEnumerator(IProcessRunner processRunner) => _processRunner = processRunner;
+
+    public async Task<IReadOnlyList<WifiInterface>> EnumerateAsync(CancellationToken ct = default)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<WifiInterface>();
@@ -43,7 +47,7 @@ public sealed class LinuxWifiInterfaceEnumerator : IWifiInterfaceEnumerator
 
         if (result.Count == 0)
         {
-            foreach (var name in TryRunIwDev())
+            foreach (var name in await TryRunIwDevAsync(ct))
             {
                 if (seen.Add(name))
                 {
@@ -52,24 +56,15 @@ public sealed class LinuxWifiInterfaceEnumerator : IWifiInterfaceEnumerator
             }
         }
 
-        return Task.FromResult<IReadOnlyList<WifiInterface>>(result);
+        return result;
     }
 
-    private static IReadOnlyList<string> TryRunIwDev()
+    private async Task<IReadOnlyList<string>> TryRunIwDevAsync(CancellationToken ct)
     {
         try
         {
-            var psi = new ProcessStartInfo("iw", "dev")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-            };
-            using var proc = Process.Start(psi);
-            if (proc is null) return Array.Empty<string>();
-            var output = proc.StandardOutput.ReadToEnd();
-            proc.WaitForExit(2000);
-            return WirelessInterfaceParser.ParseIwDev(output);
+            var result = await _processRunner.RunAsync("iw", new[] { "dev" }, ct);
+            return WirelessInterfaceParser.ParseIwDev(result.Stdout);
         }
         catch
         {

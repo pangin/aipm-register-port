@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using AipmRegister.Core.Process;
 using AipmRegister.Core.Wifi;
 
 namespace AipmRegister.Wifi.MacOs;
@@ -10,9 +11,13 @@ namespace AipmRegister.Wifi.MacOs;
 [SupportedOSPlatform("macos")]
 public sealed class MacOsWifiInterfaceEnumerator : IWifiInterfaceEnumerator
 {
+    private readonly IProcessRunner _processRunner;
+
+    public MacOsWifiInterfaceEnumerator(IProcessRunner processRunner) => _processRunner = processRunner;
+
     public async Task<IReadOnlyList<WifiInterface>> EnumerateAsync(CancellationToken ct = default)
     {
-        var raw = await NetworksetupRunner.RunAsync(new[] { "-listallhardwareports" }, ct);
+        var raw = await NetworksetupRunner.RunAsync(_processRunner, new[] { "-listallhardwareports" }, ct);
         return HardwarePortsParser.Parse(raw);
     }
 }

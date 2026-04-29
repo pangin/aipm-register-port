@@ -1,3 +1,4 @@
+using AipmRegister.Core.Process;
 using AipmRegister.Core.Wifi;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,6 +21,8 @@ public static class ServiceCollectionExtensions
     /// define.
     public static IServiceCollection AddAipmWifiPlatform(this IServiceCollection services)
     {
+        services.AddSingleton<IProcessRunner, DefaultProcessRunner>();
+
 #if WINDOWS
         if (OperatingSystem.IsWindows())
         {
