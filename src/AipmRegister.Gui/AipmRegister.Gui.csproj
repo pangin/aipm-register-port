@@ -30,13 +30,8 @@
     <ProjectReference Include="..\AipmRegister.Core\AipmRegister.Core.csproj" />
   </ItemGroup>
 
-  <!-- Share the Win32 WiFi adapter with AipmRegister.Cli without spinning
-       up a separate Wifi.Windows project; the file is namespace-neutral
-       (AipmRegister.Wifi.Windows). Restored only on Windows. -->
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <PackageReference Include="ManagedNativeWifi" Version="3.0.2" />
-    <Compile Include="..\AipmRegister.Cli\Wifi\Windows\WindowsWifiAdapter.cs"
-             Link="Wifi\Windows\WindowsWifiAdapter.cs" />
+    <ProjectReference Include="..\AipmRegister.Wifi.Windows\AipmRegister.Wifi.Windows.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">

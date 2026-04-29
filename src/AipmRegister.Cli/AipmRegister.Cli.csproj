@@ -11,17 +11,8 @@
     <PackageReference Include="System.CommandLine" Version="3.0.0-preview.3.26207.106" />
   </ItemGroup>
 
-  <!--
-    ManagedNativeWifi wraps the Win32 wlanapi.dll, so the package is only
-    referenced when restoring/building on Windows. The companion source files
-    under Wifi/Windows/ are likewise compiled only on Windows.
-  -->
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-    <PackageReference Include="ManagedNativeWifi" Version="3.0.2" />
-  </ItemGroup>
-
-  <ItemGroup Condition="!$([MSBuild]::IsOSPlatform('Windows'))">
-    <Compile Remove="Wifi\Windows\**\*.cs" />
+    <ProjectReference Include="..\AipmRegister.Wifi.Windows\AipmRegister.Wifi.Windows.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">

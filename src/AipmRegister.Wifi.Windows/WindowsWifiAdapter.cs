@@ -9,7 +9,7 @@ namespace AipmRegister.Wifi.Windows;
 /// (which wraps wlanapi.dll). Replaces the inline P/Invoke calls scattered
 /// through frmMain (lines 1140-1260, 1761) of the original.
 [SupportedOSPlatform("windows")]
-internal sealed class WindowsWifiAdapter : IWifiAdapter
+public sealed class WindowsWifiAdapter : IWifiAdapter
 {
     private readonly ILogger<WindowsWifiAdapter> _logger;
     private readonly TimeSpan _connectTimeout = TimeSpan.FromSeconds(20);
