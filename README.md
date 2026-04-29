@@ -126,19 +126,29 @@ original (icons rendered as `StreamGeometry` paths, no PNGs).
 ## Try it
 
 ### Pre-built binaries
-Download the latest [Release](https://github.com/pangin/aipm-register-port/releases) — **9 artifacts**:
+Download the latest [Release](https://github.com/pangin/aipm-register-port/releases) — **18 artifacts** (3 form factors × 6 RIDs):
 
-| Artifact | Form | OS | Size |
-|---|---|---|---|
-| `aipm-register-cli-windows-x64.exe`        | self-contained CLI    | Windows | ~70 MB |
-| `aipm-register-cli-linux-x64`              | self-contained CLI    | Linux   | ~70 MB |
-| `aipm-register-cli-macos-arm64`            | self-contained CLI    | macOS   | ~70 MB |
-| **`aipm-register-cli-aot-windows-x64.exe`**| **Native AOT** CLI    | Windows | **~12 MB**, ~20ms cold start |
-| **`aipm-register-cli-aot-linux-x64`**      | **Native AOT** CLI    | Linux   | **~12 MB** |
-| **`aipm-register-cli-aot-macos-arm64`**    | **Native AOT** CLI    | macOS   | **~12 MB** |
-| `aipm-register-gui-windows-x64.exe`        | single-file GUI       | Windows | ~80 MB |
-| `aipm-register-gui-linux-x64`              | single-file GUI       | Linux   | ~80 MB |
-| `aipm-register-gui-macos-arm64.app.zip`    | **`.app` bundle**     | macOS   | ~80 MB — drag into /Applications |
+| Form factor | win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-arm64 | osx-x64 |
+|---|---|---|---|---|---|---|
+| **CLI self-contained** | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ Mach-O | ✅ Mach-O |
+| **CLI Native AOT** ⚡   | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ Mach-O | ✅ Mach-O |
+| **GUI** (Avalonia)     | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ `.app.zip` | ✅ `.app.zip` |
+
+Naming pattern:
+
+```
+aipm-register-{cli,cli-aot,gui}-{windows-x64.exe,
+                                  windows-arm64.exe,
+                                  linux-x64,
+                                  linux-arm64,
+                                  macos-arm64[.app.zip],
+                                  macos-x64[.app.zip]}
+```
+
+Native AOT CLI builds are **~12 MB** with ~20 ms cold start (vs the
+~70 MB / ~300 ms self-contained variant). Each RID is built on a
+native runner — no cross-compile gymnastics, link toolchain matches
+the target.
 
 ### From source — step-by-step
 

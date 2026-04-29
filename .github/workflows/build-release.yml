@@ -33,9 +33,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: windows-latest, rid: win-x64,    ext: .exe, suffix: windows-x64,  is_mac: false }
-          - { os: ubuntu-latest,  rid: linux-x64,  ext: '',   suffix: linux-x64,    is_mac: false }
-          - { os: macos-latest,   rid: osx-arm64,  ext: '',   suffix: macos-arm64,  is_mac: true  }
+          # Each row uses a native runner so PublishAot links against the
+          # right toolchain without cross-compile gymnastics.
+          - { os: windows-latest,   rid: win-x64,     ext: .exe, suffix: windows-x64,    is_mac: false }
+          - { os: windows-11-arm,   rid: win-arm64,   ext: .exe, suffix: windows-arm64,  is_mac: false }
+          - { os: ubuntu-latest,    rid: linux-x64,   ext: '',   suffix: linux-x64,      is_mac: false }
+          - { os: ubuntu-24.04-arm, rid: linux-arm64, ext: '',   suffix: linux-arm64,    is_mac: false }
+          - { os: macos-latest,     rid: osx-arm64,   ext: '',   suffix: macos-arm64,    is_mac: true  }
+          - { os: macos-13,         rid: osx-x64,     ext: '',   suffix: macos-x64,      is_mac: true  }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
