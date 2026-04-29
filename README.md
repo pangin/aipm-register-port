@@ -286,6 +286,18 @@ aipm-register-cli \
   --home-password 'p@ss'
 ```
 
+If the host has more than one wireless interface (e.g. an external USB
+adapter on top of a built-in radio), the CLI lists them and exits.
+Re-run with `--wifi-interface <id>` to pick:
+
+```
+aipm-register-cli ... --wifi-interface wlan1
+```
+
+`AIPM_WIFI_IFACE` env var works as a fallback (`--wifi-interface`
+overrides it). With a single interface present the CLI picks it
+silently.
+
 Wi-Fi handling is fully automated on every supported OS:
 
 | OS | Adapter | Backend |
