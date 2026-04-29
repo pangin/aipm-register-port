@@ -6,6 +6,7 @@
     <Project Path="src/AipmRegister.Wifi.Linux/AipmRegister.Wifi.Linux.csproj" />
     <Project Path="src/AipmRegister.Wifi.MacOs/AipmRegister.Wifi.MacOs.csproj" />
     <Project Path="src/AipmRegister.Wifi.Windows/AipmRegister.Wifi.Windows.csproj" />
+    <Project Path="src/AipmRegister.Hosting/AipmRegister.Hosting.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AipmRegister.Core.Tests/AipmRegister.Core.Tests.csproj" />

@@ -1,11 +1,10 @@
 using AipmRegister.Cli;
-using AipmRegister.Cli.Wifi;
 using AipmRegister.Core.Api;
 using AipmRegister.Core.Devices;
 using AipmRegister.Core.Models;
 using AipmRegister.Core.Notification;
 using AipmRegister.Core.Orchestration;
-using AipmRegister.Core.Wifi;
+using AipmRegister.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -54,36 +53,7 @@ root.SetAction(async (parseResult, ct) =>
     host.Services.AddSingleton<IDeviceTcpSender, DeviceTcpSender>();
     host.Services.AddSingleton<IUserNotifier, ConsoleNotifier>();
 
-#if WINDOWS
-    if (OperatingSystem.IsWindows())
-    {
-        host.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.Windows.WindowsWifiAdapter>();
-    }
-    else
-    {
-        host.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
-    }
-#elif LINUX
-    if (OperatingSystem.IsLinux())
-    {
-        host.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.Linux.LinuxWifiAdapter>();
-    }
-    else
-    {
-        host.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
-    }
-#elif MACOS
-    if (OperatingSystem.IsMacOS())
-    {
-        host.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.MacOs.MacOsWifiAdapter>();
-    }
-    else
-    {
-        host.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
-    }
-#else
-    host.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
-#endif
+    host.Services.AddAipmWifiPlatform();
     host.Services.AddSingleton<IRegistrationOrchestrator, RegistrationOrchestrator>();
 
     using var app = host.Build();

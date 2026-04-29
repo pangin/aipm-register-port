@@ -7,8 +7,8 @@ using AipmRegister.Core.Wifi;
 using AipmRegister.Gui.Notification;
 using AipmRegister.Gui.ViewModels;
 using AipmRegister.Gui.Views;
-using AipmRegister.Gui.Wifi;
 using AipmRegister.Gui.Wizard;
+using AipmRegister.Hosting;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -42,36 +42,7 @@ public partial class App : Application
         builder.Services.AddSingleton<UiNotifier>();
         builder.Services.AddSingleton<IUserNotifier>(sp => sp.GetRequiredService<UiNotifier>());
 
-#if WINDOWS
-        if (OperatingSystem.IsWindows())
-        {
-            builder.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.Windows.WindowsWifiAdapter>();
-        }
-        else
-        {
-            builder.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
-        }
-#elif LINUX
-        if (OperatingSystem.IsLinux())
-        {
-            builder.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.Linux.LinuxWifiAdapter>();
-        }
-        else
-        {
-            builder.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
-        }
-#elif MACOS
-        if (OperatingSystem.IsMacOS())
-        {
-            builder.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.MacOs.MacOsWifiAdapter>();
-        }
-        else
-        {
-            builder.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
-        }
-#else
-        builder.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
-#endif
+        builder.Services.AddAipmWifiPlatform();
 
         builder.Services.AddSingleton<IRegistrationOrchestrator, RegistrationOrchestrator>();
 

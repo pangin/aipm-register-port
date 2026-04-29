@@ -1,12 +1,13 @@
 using AipmRegister.Core.Wifi;
 using Microsoft.Extensions.Logging;
 
-namespace AipmRegister.Cli.Wifi;
+namespace AipmRegister.Hosting;
 
 /// Placeholder Wi-Fi adapter that logs intent but performs no OS calls. Used
-/// while the real Win32 NativeWifi adapter is being ported (next commit). Lets
-/// the CLI exercise the orchestrator end-to-end against a network the user
-/// has already connected to manually.
+/// as the fallback when the build target is a platform we don't ship a
+/// native adapter for, or when the runtime OS does not match the build's
+/// platform define (which lets the orchestrator's Wi-Fi calls become
+/// deterministic no-ops in those edge cases — useful for diagnostics).
 internal sealed class NoopWifiAdapter : IWifiAdapter
 {
     private readonly ILogger<NoopWifiAdapter> _logger;
@@ -15,7 +16,7 @@ internal sealed class NoopWifiAdapter : IWifiAdapter
 
     public Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken ct = default)
     {
-        _logger.LogWarning("Wi-Fi scan requested but no adapter installed (Win32 implementation pending).");
+        _logger.LogWarning("Wi-Fi scan requested but no adapter installed for this platform.");
         return Task.FromResult<IReadOnlyList<WifiNetwork>>(Array.Empty<WifiNetwork>());
     }
 
