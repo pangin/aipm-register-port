@@ -1,7 +1,7 @@
 # aipm-register-port
 
 [![build](https://github.com/pangin/aipm-register-port/actions/workflows/build-release.yml/badge.svg)](https://github.com/pangin/aipm-register-port/actions/workflows/build-release.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 > Reverse engineered a Windows-only **.NET Framework 3.5 WinForms** IoT
 > registration tool, then modernized it into a **.NET 10** code base with a
@@ -51,8 +51,8 @@ foundation.
 6. **Ship across OSes.** GitHub Actions builds self-contained, single-file
    binaries on every tagged release.
 
-The git history is intentionally curated as a portfolio artifact — the chain
-of commits doubles as a porting journal.
+The git history is intentionally curated so each commit corresponds to a
+recovered concept — it doubles as a porting journal.
 
 ---
 
@@ -318,12 +318,13 @@ Wi-Fi handling is fully automated on every supported OS:
 
 ## Disclaimers
 
-- The original `AIPM_Register.exe` belongs to its respective vendor; this
-  repository is a **personal portfolio reverse engineering exercise**. The
-  binary is included only as a reproducibility aid; redistribute responsibly.
+- The original `AIPM_Register.exe` and the materials derived from it under
+  `analysis/` (decompiled IL, recovered class maps, protocol notes) remain
+  the intellectual property of the device vendor. They are included only
+  as a reproducibility aid for the porting work under `src/`; redistribute
+  responsibly.
 - All cloud endpoints, message formats, and protocol details are recovered
-  from the existing binary's behavior. No information beyond what the binary
-  itself reveals at rest.
+  from the existing binary's behavior at rest.
 - Security observations recorded in
   [`analysis/notes.md §7`](analysis/notes.md) are noted for educational
   purposes only.
@@ -332,4 +333,7 @@ Wi-Fi handling is fully automated on every supported OS:
 
 ## License
 
-[MIT](LICENSE) © 2026 Kim Seong Uk
+[Apache 2.0](LICENSE) © 2026 Kim Seong Uk
+
+Third-party components and the boundaries of this repository's license
+are summarized in [`NOTICE`](NOTICE).

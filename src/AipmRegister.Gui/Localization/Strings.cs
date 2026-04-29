@@ -1,8 +1,7 @@
 namespace AipmRegister.Gui.Localization;
 
 /// All UI strings keyed by stable IDs. Korean values follow the original
-/// frmMain.cs hardcoded text (see analysis/notes.md §10.5). English values
-/// are translations geared for portfolio readers.
+/// frmMain.cs hardcoded text (see analysis/notes.md §10.5).
 internal static class Strings
 {
     public static readonly IReadOnlyDictionary<string, string> Ko = new Dictionary<string, string>(StringComparer.Ordinal)

@@ -1,0 +1,47 @@
+aipm-register-port
+Copyright 2026 Kim Seong Uk
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this software except in compliance with the License.
+You may obtain a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+================================================================================
+Third-Party Components
+================================================================================
+
+This product redistributes the following third-party components.
+Their licenses apply to those files only and are not superseded by the
+Apache License above.
+
+--------------------------------------------------------------------------------
+Noto Sans KR (Variable, Korean)
+--------------------------------------------------------------------------------
+Path:        src/AipmRegister.Gui/Assets/Fonts/NotoSansKR.ttf
+License:     SIL Open Font License, Version 1.1
+License text src/AipmRegister.Gui/Assets/Fonts/OFL.txt
+Source:      https://github.com/google/fonts/tree/main/ofl/notosanskr
+Notes:       Embedded as an Avalonia resource and registered as a font
+             fallback so Korean glyphs render on every OS without
+             requiring a system CJK font. The OFL allows redistribution
+             inside software products as long as OFL.txt is included.
+
+================================================================================
+Reverse-Engineering Source Material
+================================================================================
+
+The original Windows binary distributed by the device vendor —
+samples/AIPM_Register.exe — and the materials derived from it under
+analysis/ (decompiled IL, recovered class maps, protocol notes) remain
+the intellectual property of the vendor. They are included here only
+as a reproducibility aid for the porting work in src/. The Apache-2.0
+license above applies to the original source code under src/, tests/,
+docs/, and the accompanying configuration; it does not grant any
+rights in the vendor's binary or its derivative analysis materials.
