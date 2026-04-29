@@ -4,6 +4,7 @@ using AipmRegister.Core.Models;
 using AipmRegister.Core.Notification;
 using AipmRegister.Core.Orchestration;
 using AipmRegister.Core.Wifi;
+using AipmRegister.Gui.Localization;
 using AipmRegister.Gui.Notification;
 using AipmRegister.Gui.ViewModels;
 using AipmRegister.Gui.Views;
@@ -21,6 +22,12 @@ namespace AipmRegister.Gui;
 public partial class App : Application
 {
     public IHost? Host { get; private set; }
+
+    /// Resolved from the DI host once <c>OnFrameworkInitializationCompleted</c>
+    /// finishes its <c>Host.Build()</c>. <see cref="LocExtension"/> reaches
+    /// the service through this property; null until the build completes,
+    /// in which case the markup extension renders a loud placeholder.
+    public ILocalization? Localization { get; private set; }
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -44,6 +51,7 @@ public partial class App : Application
 
         builder.Services.AddAipmWifiPlatform();
 
+        builder.Services.AddSingleton<ILocalization, AipmRegister.Gui.Localization.Localization>();
         builder.Services.AddSingleton<IRegistrationOrchestrator, RegistrationOrchestrator>();
 
         // Wizard state + each step ViewModel + the main shell ViewModel.
@@ -59,6 +67,7 @@ public partial class App : Application
         builder.Services.AddSingleton<MainViewModel>();
 
         Host = builder.Build();
+        Localization = Host.Services.GetRequiredService<ILocalization>();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {

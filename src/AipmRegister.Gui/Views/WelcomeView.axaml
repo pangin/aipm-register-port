@@ -11,9 +11,9 @@
                Text="Energy Saving Platform" />
     <TextBlock FontSize="13" TextWrapping="Wrap"
                TextAlignment="Center" MaxWidth="500"
-               Text="{Binding [Welcome.Body], Source={x:Static loc:L.Instance}}" />
+               Text="{loc:Loc Welcome.Body}" />
     <Button HorizontalAlignment="Center" Padding="40,8" FontSize="14"
             Command="{Binding StartCommand}"
-            Content="{Binding [Welcome.StartButton], Source={x:Static loc:L.Instance}}" />
+            Content="{loc:Loc Welcome.StartButton}" />
   </StackPanel>
 </UserControl>

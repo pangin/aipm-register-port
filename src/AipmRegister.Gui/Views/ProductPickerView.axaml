@@ -8,7 +8,7 @@
              x:DataType="vm:ProductPickerViewModel">
   <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
     <TextBlock Grid.Row="0" FontWeight="SemiBold" FontSize="13"
-               Text="{Binding [Step3.Title], Source={x:Static loc:L.Instance}}" />
+               Text="{loc:Loc Step3.Title}" />
 
     <ScrollViewer Grid.Row="1">
       <ListBox ItemsSource="{Binding Products}"
@@ -42,6 +42,6 @@
 
     <Button Grid.Row="2" HorizontalAlignment="Center" Padding="20,6"
             Command="{Binding NextCommand}"
-            Content="{Binding [Step3.NextButton], Source={x:Static loc:L.Instance}}" />
+            Content="{loc:Loc Step3.NextButton}" />
   </Grid>
 </UserControl>

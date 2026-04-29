@@ -15,17 +15,20 @@ public partial class RegisteringViewModel : ObservableObject
     private readonly IUserNotifier _notifier;
     private readonly IWizardNavigator _nav;
     private readonly WizardState _state;
+    private readonly ILocalization _l;
 
     public RegisteringViewModel(
         IRegistrationOrchestrator orchestrator,
         IUserNotifier notifier,
         IWizardNavigator nav,
-        WizardState state)
+        WizardState state,
+        ILocalization l)
     {
         _orchestrator = orchestrator;
         _notifier = notifier;
         _nav = nav;
         _state = state;
+        _l = l;
     }
 
     [ObservableProperty] private int    progressValue;
@@ -43,7 +46,7 @@ public partial class RegisteringViewModel : ObservableObject
 
         IsBusy = true;
         ProgressValue = 0;
-        StatusText = L.Instance["Step5.InProgress"];
+        StatusText = _l["Step5.InProgress"];
         Succeeded = false;
         _cts = new CancellationTokenSource();
 
@@ -71,21 +74,21 @@ public partial class RegisteringViewModel : ObservableObject
                     case ControlCheckOutcome.Success:
                         Succeeded = true;
                         ProgressValue = ProgressMaximum;
-                        StatusText = L.Instance["Step5.Done"];
+                        StatusText = _l["Step5.Done"];
                         return;
                     case ControlCheckOutcome.AlreadyRegistered:
-                        StatusText = L.Instance["Error.AlreadyRegistered"];
+                        StatusText = _l["Error.AlreadyRegistered"];
                         return;
                     case ControlCheckOutcome.AuthCodeExpired:
-                        StatusText = L.Instance["Error.AuthExpired"];
+                        StatusText = _l["Error.AuthExpired"];
                         return;
                     case ControlCheckOutcome.NotRegisteredExceededAttempts:
-                        StatusText = L.Instance["Error.NotRegistered"];
+                        StatusText = _l["Error.NotRegistered"];
                         return;
                 }
             }
             // Loop ended without terminal — treat as not responding.
-            StatusText = L.Instance["Error.NotRegistered"];
+            StatusText = _l["Error.NotRegistered"];
         }
         catch (OperationCanceledException)
         {

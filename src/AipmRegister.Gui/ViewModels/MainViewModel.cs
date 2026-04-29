@@ -7,13 +7,16 @@ namespace AipmRegister.Gui.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    private readonly ILocalization _l;
+
     public MainViewModel(
         WelcomeViewModel welcome,
         WifiPickerViewModel wifi,
         AuthCodeViewModel auth,
         ProductPickerViewModel product,
         DevicePickerViewModel device,
-        RegisteringViewModel registering)
+        RegisteringViewModel registering,
+        ILocalization l)
     {
         Welcome = welcome;
         Wifi = wifi;
@@ -21,7 +24,7 @@ public partial class MainViewModel : ObservableObject
         Product = product;
         Device = device;
         Registering = registering;
-        L = L.Instance;
+        _l = l;
         Current = welcome;
     }
 
@@ -31,7 +34,6 @@ public partial class MainViewModel : ObservableObject
     public ProductPickerViewModel Product     { get; }
     public DevicePickerViewModel  Device      { get; }
     public RegisteringViewModel   Registering { get; }
-    public L                      L           { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StepIndex))]
@@ -74,5 +76,5 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ToggleLanguage() => L.Toggle();
+    private void ToggleLanguage() => _l.Toggle();
 }

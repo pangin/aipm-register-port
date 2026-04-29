@@ -1,6 +1,6 @@
 using AipmRegister.Gui.Wizard;
 
-namespace AipmRegister.Gui.Wizard.Tests;
+namespace AipmRegister.Gui.Tests.Wizard;
 
 public class WizardNavigatorTests
 {

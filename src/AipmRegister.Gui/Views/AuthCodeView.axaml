@@ -6,21 +6,21 @@
              x:DataType="vm:AuthCodeViewModel">
   <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="10">
     <TextBlock Grid.Row="0" FontWeight="SemiBold" FontSize="13"
-               Text="{Binding [Step2.Title], Source={x:Static loc:L.Instance}}" />
+               Text="{loc:Loc Step2.Title}" />
 
     <Grid Grid.Row="1" ColumnDefinitions="80,*,Auto" ColumnSpacing="6" Margin="0,4">
       <TextBlock Grid.Column="0" VerticalAlignment="Center"
-                 Text="{Binding [Step2.AuthCodeLabel], Source={x:Static loc:L.Instance}}" />
+                 Text="{loc:Loc Step2.AuthCodeLabel}" />
       <TextBox  Grid.Column="1" MaxLength="8" PlaceholderText="12345678"
                 Text="{Binding AuthCode, Mode=TwoWay}" />
       <Button   Grid.Column="2" Padding="14,4"
                 Command="{Binding VerifyCommand}"
-                Content="{Binding [Step2.AuthButton], Source={x:Static loc:L.Instance}}" />
+                Content="{loc:Loc Step2.AuthButton}" />
     </Grid>
 
     <Grid Grid.Row="2" ColumnDefinitions="80,*" ColumnSpacing="6" Margin="0,4">
       <TextBlock Grid.Column="0" VerticalAlignment="Center"
-                 Text="{Binding [Step2.LinkedAccountLabel], Source={x:Static loc:L.Instance}}" />
+                 Text="{loc:Loc Step2.LinkedAccountLabel}" />
       <TextBox  Grid.Column="1" IsReadOnly="True"
                 Text="{Binding LinkedAccount, Mode=OneWay}" />
     </Grid>
@@ -28,11 +28,11 @@
     <Border Grid.Row="3" BorderBrush="#444" BorderThickness="1" CornerRadius="3" Padding="14"
             Margin="0,8" VerticalAlignment="Center">
       <TextBlock TextAlignment="Center" TextWrapping="Wrap" FontSize="12" Opacity="0.9"
-                 Text="{Binding [Step2.ConfirmHint], Source={x:Static loc:L.Instance}}" />
+                 Text="{loc:Loc Step2.ConfirmHint}" />
     </Border>
 
     <Button Grid.Row="4" HorizontalAlignment="Center" Padding="20,6"
             Command="{Binding NextCommand}"
-            Content="{Binding [Step2.NextButton], Source={x:Static loc:L.Instance}}" />
+            Content="{loc:Loc Step2.NextButton}" />
   </Grid>
 </UserControl>

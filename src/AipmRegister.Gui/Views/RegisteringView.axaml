@@ -6,7 +6,7 @@
              x:DataType="vm:RegisteringViewModel">
   <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="14">
     <TextBlock Grid.Row="0" FontWeight="SemiBold" FontSize="13"
-               Text="{Binding [Step5.Title], Source={x:Static loc:L.Instance}}" />
+               Text="{loc:Loc Step5.Title}" />
 
     <!-- Yellow status banner -->
     <Border Grid.Row="1" Padding="10,8" CornerRadius="2"
@@ -29,10 +29,10 @@
     <Grid Grid.Row="4" ColumnDefinitions="*,Auto,*" ColumnSpacing="14">
       <Button Grid.Column="0" HorizontalAlignment="Right" Padding="20,6"
               Command="{Binding BackCommand}"
-              Content="{Binding [Step5.PrevButton], Source={x:Static loc:L.Instance}}" />
+              Content="{loc:Loc Step5.PrevButton}" />
       <Button Grid.Column="2" HorizontalAlignment="Left" Padding="20,6"
               Command="{Binding UnbindCommand}"
-              Content="{Binding [Step5.UnbindButton], Source={x:Static loc:L.Instance}}" />
+              Content="{loc:Loc Step5.UnbindButton}" />
     </Grid>
   </Grid>
 </UserControl>

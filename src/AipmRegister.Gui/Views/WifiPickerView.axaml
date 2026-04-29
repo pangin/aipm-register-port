@@ -8,14 +8,14 @@
              x:DataType="vm:WifiPickerViewModel">
   <Grid RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowSpacing="8">
     <TextBlock Grid.Row="0" FontWeight="SemiBold" FontSize="13"
-               Text="{Binding [Step1.Title], Source={x:Static loc:L.Instance}}" />
+               Text="{loc:Loc Step1.Title}" />
 
     <!-- Adapter picker — auto-hidden when there is only one wireless
          interface so the common laptop case looks unchanged. -->
     <Grid Grid.Row="1" ColumnDefinitions="80,*" ColumnSpacing="6"
           IsVisible="{Binding ShowAdapterPicker}">
       <TextBlock Grid.Column="0" VerticalAlignment="Center"
-                 Text="{Binding [Step1.AdapterLabel], Source={x:Static loc:L.Instance}}" />
+                 Text="{loc:Loc Step1.AdapterLabel}" />
       <ComboBox  Grid.Column="1" HorizontalAlignment="Stretch"
                  ItemsSource="{Binding Interfaces}"
                  SelectedItem="{Binding SelectedInterface, Mode=TwoWay}">
@@ -49,22 +49,22 @@
 
     <Button Grid.Row="3" HorizontalAlignment="Left" Padding="10,3"
             Command="{Binding RefreshCommand}"
-            Content="{Binding [Step1.RefreshButton], Source={x:Static loc:L.Instance}}" />
+            Content="{loc:Loc Step1.RefreshButton}" />
 
     <Grid Grid.Row="4" ColumnDefinitions="80,*" ColumnSpacing="6" Margin="0,2">
       <TextBlock Grid.Column="0" VerticalAlignment="Center"
-                 Text="{Binding [Step1.SsidLabel], Source={x:Static loc:L.Instance}}" />
+                 Text="{loc:Loc Step1.SsidLabel}" />
       <TextBox  Grid.Column="1" Text="{Binding Selected.Ssid, Mode=OneWay}" IsReadOnly="True" />
     </Grid>
 
     <Grid Grid.Row="5" ColumnDefinitions="80,*,Auto" ColumnSpacing="6" Margin="0,2">
       <TextBlock Grid.Column="0" VerticalAlignment="Center"
-                 Text="{Binding [Step1.PasswordLabel], Source={x:Static loc:L.Instance}}" />
+                 Text="{loc:Loc Step1.PasswordLabel}" />
       <TextBox  Grid.Column="1" PasswordChar="*"
                 Text="{Binding HomePassword, Mode=TwoWay}" />
       <Button   Grid.Column="2" Padding="14,4"
                 Command="{Binding ConnectCommand}"
-                Content="{Binding [Step1.ConnectButton], Source={x:Static loc:L.Instance}}" />
+                Content="{loc:Loc Step1.ConnectButton}" />
     </Grid>
   </Grid>
 </UserControl>
