@@ -12,20 +12,17 @@ namespace AipmRegister.Gui.ViewModels;
 public partial class RegisteringViewModel : ObservableObject
 {
     private readonly IRegistrationOrchestrator _orchestrator;
-    private readonly IWifiAdapter _wifi;
     private readonly IUserNotifier _notifier;
     private readonly IWizardNavigator _nav;
     private readonly WizardState _state;
 
     public RegisteringViewModel(
         IRegistrationOrchestrator orchestrator,
-        IWifiAdapter wifi,
         IUserNotifier notifier,
         IWizardNavigator nav,
         WizardState state)
     {
         _orchestrator = orchestrator;
-        _wifi = wifi;
         _notifier = notifier;
         _nav = nav;
         _state = state;
@@ -42,7 +39,8 @@ public partial class RegisteringViewModel : ObservableObject
     /// Called by MainViewModel when the user enters step 5/5.
     public async Task RunAsync()
     {
-        if (_state.Account is null || _state.Product is null) return;
+        if (_state.Account is null || _state.Product is null || _state.WifiAdapter is null) return;
+        var wifi = _state.WifiAdapter;
 
         IsBusy = true;
         ProgressValue = 0;
@@ -53,7 +51,7 @@ public partial class RegisteringViewModel : ObservableObject
         try
         {
             // Step a: connect to device hotspot
-            await _wifi.ConnectAsync(_state.DeviceHotspotSsid, string.Empty, WifiSecurity.Open, _cts.Token);
+            await wifi.ConnectAsync(_state.DeviceHotspotSsid, string.Empty, WifiSecurity.Open, _cts.Token);
 
             // Step b: TCP hand-off, derive deviceId
             var info = await _orchestrator.SendDeviceSettingsAsync(
@@ -66,8 +64,8 @@ public partial class RegisteringViewModel : ObservableObject
             _state.DeviceMac = info.Mac;
 
             // Step c: rejoin home network so we can poll cloud
-            await _wifi.DisconnectAndForgetAsync(_state.DeviceHotspotSsid, _cts.Token);
-            await _wifi.ConnectAsync(_state.HomeSsid, _state.HomePassword, WifiSecurity.Wpa2Personal, _cts.Token);
+            await wifi.DisconnectAndForgetAsync(_state.DeviceHotspotSsid, _cts.Token);
+            await wifi.ConnectAsync(_state.HomeSsid, _state.HomePassword, WifiSecurity.Wpa2Personal, _cts.Token);
 
             // Step d: poll until terminal outcome
             await foreach (var tick in _orchestrator.PollRegistrationAsync(

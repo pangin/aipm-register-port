@@ -1,4 +1,5 @@
 using AipmRegister.Core.Models;
+using AipmRegister.Core.Wifi;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace AipmRegister.Gui.Wizard;
@@ -9,6 +10,15 @@ namespace AipmRegister.Gui.Wizard;
 /// but with explicit names.
 public partial class WizardState : ObservableObject
 {
+    /// Picked in step 1/5 (Wi-Fi). Drives both the home-Wi-Fi scan in this
+    /// step and the device-hotspot scan in step 4/5; once set, every later
+    /// step uses <see cref="WifiAdapter"/> instead of resolving its own.
+    [ObservableProperty] private WifiInterface? wifiInterface;
+
+    /// Adapter instance produced by <c>IWifiAdapterFactory</c> the moment
+    /// the user (or auto-pick when N=1) chooses an interface.
+    [ObservableProperty] private IWifiAdapter? wifiAdapter;
+
     [ObservableProperty] private string  homeSsid           = string.Empty;
     [ObservableProperty] private string  homePassword       = string.Empty;
     [ObservableProperty] private string  authCode           = string.Empty;

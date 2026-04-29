@@ -10,18 +10,15 @@ namespace AipmRegister.Gui.ViewModels;
 
 public partial class DevicePickerViewModel : ObservableObject
 {
-    private readonly IWifiAdapter _wifi;
     private readonly IUserNotifier _notifier;
     private readonly IWizardNavigator _nav;
     private readonly WizardState _state;
 
     public DevicePickerViewModel(
-        IWifiAdapter wifi,
         IUserNotifier notifier,
         IWizardNavigator nav,
         WizardState state)
     {
-        _wifi = wifi;
         _notifier = notifier;
         _nav = nav;
         _state = state;
@@ -58,12 +55,12 @@ public partial class DevicePickerViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     private async Task RefreshAsync()
     {
-        if (_state.Product is null) return;
+        if (_state.Product is null || _state.WifiAdapter is null) return;
         IsBusy = true;
         try
         {
             Devices.Clear();
-            var found = await _wifi.ScanAsync();
+            var found = await _state.WifiAdapter.ScanAsync();
             foreach (var n in found
                 .Where(n => _state.Product.IsHotspotOf(n.Ssid))
                 .OrderByDescending(n => n.SignalQuality))

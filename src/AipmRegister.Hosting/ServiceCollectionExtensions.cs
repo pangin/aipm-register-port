@@ -46,26 +46,4 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IWifiAdapterFactory,      NoopWifiAdapterFactory>();
         return services;
     }
-
-    /// Transitional helper used by hosts whose ViewModels (or other
-    /// services) still inject <see cref="IWifiAdapter"/> directly.
-    /// Resolves the factory's adapter for the first enumerated interface
-    /// — preserving the legacy "first wireless wins" behavior — and
-    /// caches the singleton. Once GUI's WifiPicker step uses
-    /// <see cref="IWifiAdapterFactory"/> to honour the user's pick this
-    /// shim becomes unnecessary.
-    public static IServiceCollection AddAipmDefaultWifiAdapterShim(this IServiceCollection services)
-    {
-        services.AddSingleton<IWifiAdapter>(sp =>
-        {
-            var enumerator = sp.GetRequiredService<IWifiInterfaceEnumerator>();
-            var factory    = sp.GetRequiredService<IWifiAdapterFactory>();
-            var ifaces = enumerator.EnumerateAsync().GetAwaiter().GetResult();
-            var iface  = ifaces.Count > 0
-                ? ifaces[0]
-                : new WifiInterface(Id: "noop", DisplayName: "No Wi-Fi adapter");
-            return factory.Create(iface);
-        });
-        return services;
-    }
 }

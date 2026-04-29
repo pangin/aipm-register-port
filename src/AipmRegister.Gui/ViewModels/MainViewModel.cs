@@ -68,6 +68,7 @@ public partial class MainViewModel : ObservableObject
         };
 
         // Step-on-enter side effects.
+        if (step == WizardStep.WifiPicker)    _ = Wifi.PrimeAsync();
         if (step == WizardStep.DevicePicker)  _ = Device.PrimeAsync();
         if (step == WizardStep.Registering)   _ = Registering.RunAsync();
     }
