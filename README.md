@@ -126,25 +126,146 @@ original (icons rendered as `StreamGeometry` paths, no PNGs).
 ## Try it
 
 ### Pre-built binaries
-Download the latest [Release](https://github.com/pangin/aipm-register-port/releases) — six self-contained artifacts:
+Download the latest [Release](https://github.com/pangin/aipm-register-port/releases) — **9 artifacts**:
 
-| Artifact | Form | OS |
-|---|---|---|
-| `aipm-register-cli-windows-x64.exe`        | single-file `.exe` | Windows |
-| `aipm-register-cli-linux-x64`              | single-file ELF    | Linux   |
-| `aipm-register-cli-macos-arm64`            | single-file Mach-O | macOS (Apple Silicon) |
-| `aipm-register-gui-windows-x64.exe`        | single-file GUI    | Windows |
-| `aipm-register-gui-linux-x64`              | single-file GUI    | Linux   |
-| `aipm-register-gui-macos-arm64.app.zip`    | **`.app` bundle**  | macOS (Apple Silicon) — extract & drop into /Applications |
+| Artifact | Form | OS | Size |
+|---|---|---|---|
+| `aipm-register-cli-windows-x64.exe`        | self-contained CLI    | Windows | ~70 MB |
+| `aipm-register-cli-linux-x64`              | self-contained CLI    | Linux   | ~70 MB |
+| `aipm-register-cli-macos-arm64`            | self-contained CLI    | macOS   | ~70 MB |
+| **`aipm-register-cli-aot-windows-x64.exe`**| **Native AOT** CLI    | Windows | **~12 MB**, ~20ms cold start |
+| **`aipm-register-cli-aot-linux-x64`**      | **Native AOT** CLI    | Linux   | **~12 MB** |
+| **`aipm-register-cli-aot-macos-arm64`**    | **Native AOT** CLI    | macOS   | **~12 MB** |
+| `aipm-register-gui-windows-x64.exe`        | single-file GUI       | Windows | ~80 MB |
+| `aipm-register-gui-linux-x64`              | single-file GUI       | Linux   | ~80 MB |
+| `aipm-register-gui-macos-arm64.app.zip`    | **`.app` bundle**     | macOS   | ~80 MB — drag into /Applications |
 
-### From source
+### From source — step-by-step
+
+#### Common (all OSes)
 ```bash
 git clone https://github.com/pangin/aipm-register-port.git
 cd aipm-register-port
-dotnet test                                          # run unit tests
-dotnet run --project src/AipmRegister.Cli -- --help  # CLI
+dotnet test                                          # 49 cases across 3 test projects
+dotnet run --project src/AipmRegister.Cli -- --help  # CLI dry-run
 dotnet run --project src/AipmRegister.Gui            # GUI
 ```
+
+For tagged release-style binaries, see the per-OS publish recipes below.
+
+#### Windows
+
+```powershell
+# 1. Prereqs
+winget install Microsoft.DotNet.SDK.10
+winget install GitHub.cli            # only if you want to mint releases
+winget install Git.Git
+# Visual Studio Build Tools 2022+ with the "Desktop development with C++"
+# workload — required for Native AOT (link.exe + libucrt). Optional unless
+# you intend to publish AOT locally.
+
+# 2. Build & test
+git clone https://github.com/pangin/aipm-register-port.git
+cd aipm-register-port
+dotnet build
+dotnet test
+
+# 3. Run
+dotnet run --project src\AipmRegister.Gui
+
+# 4. Publish self-contained
+dotnet publish src\AipmRegister.Cli -c Release -r win-x64 `
+  --self-contained -p:PublishSingleFile=true -o out\cli
+dotnet publish src\AipmRegister.Gui -c Release -r win-x64 `
+  --self-contained -p:PublishSingleFile=true -o out\gui
+
+# 5. Publish Native AOT (needs Build Tools)
+dotnet publish src\AipmRegister.Cli -c Release -r win-x64 `
+  -p:PublishAot=true -p:InvariantGlobalization=true -o out\cli-aot
+```
+
+Wi-Fi automation uses `wlanapi.dll` via the `ManagedNativeWifi` package — no
+extra setup. Run as a regular user.
+
+#### Linux (Ubuntu / Debian)
+
+```bash
+# 1. Prereqs
+sudo apt update
+sudo apt install -y dotnet-sdk-10.0 git wpasupplicant
+# wpa_supplicant must actually be running for the Wi-Fi adapter to do its
+# job. On NetworkManager systems it already is — `systemctl status wpa_supplicant`
+# to confirm.
+
+# 2. Permission for the wpa_supplicant control socket (one-time)
+sudo usermod -aG netdev $USER
+# log out and back in for the group change to take effect
+# alternatives: run with sudo, or `setcap cap_net_admin+ep` on the binary
+# see docs/linux-wifi-permissions.md for the full menu.
+
+# 3. Build & test
+git clone https://github.com/pangin/aipm-register-port.git
+cd aipm-register-port
+dotnet build
+dotnet test
+
+# 4. Run
+dotnet run --project src/AipmRegister.Gui          # Avalonia GUI
+# or (CLI):
+dotnet run --project src/AipmRegister.Cli -- --help
+
+# 5. Publish self-contained
+dotnet publish src/AipmRegister.Cli -c Release -r linux-x64 \
+  --self-contained -p:PublishSingleFile=true -o out/cli
+dotnet publish src/AipmRegister.Gui -c Release -r linux-x64 \
+  --self-contained -p:PublishSingleFile=true -o out/gui
+
+# 6. Publish Native AOT (no extra prereqs — clang+ld already on most distros)
+dotnet publish src/AipmRegister.Cli -c Release -r linux-x64 \
+  -p:PublishAot=true -p:InvariantGlobalization=true -o out/cli-aot
+```
+
+If the Wi-Fi adapter throws "control socket not found", `wpa_supplicant`
+isn't running for that interface — see [docs/linux-wifi-permissions.md](docs/linux-wifi-permissions.md).
+
+#### macOS (Apple Silicon — works on Intel too with `osx-x64`)
+
+```bash
+# 1. Prereqs
+brew install --cask dotnet-sdk           # or download the .pkg from microsoft.com
+brew install git gh                      # gh only if you want to mint releases
+xcode-select --install                   # CLI dev tools (clang, ld) for AOT
+
+# 2. Build & test
+git clone https://github.com/pangin/aipm-register-port.git
+cd aipm-register-port
+dotnet build
+dotnet test
+
+# 3. Run
+dotnet run --project src/AipmRegister.Gui
+
+# 4. Publish self-contained
+dotnet publish src/AipmRegister.Cli -c Release -r osx-arm64 \
+  --self-contained -p:PublishSingleFile=true -o out/cli
+dotnet publish src/AipmRegister.Gui -c Release -r osx-arm64 \
+  --self-contained -p:PublishSingleFile=true -o out/gui
+
+# 5. Bundle the GUI into a real .app (CI does this automatically)
+BUNDLE=out/gui/AipmRegister.app
+mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
+cp out/gui/AipmRegister.Gui "$BUNDLE/Contents/MacOS/AipmRegister"
+chmod +x "$BUNDLE/Contents/MacOS/AipmRegister"
+# minimal Info.plist — see .github/workflows/build-release.yml for the
+# version that ships with NSLocationUsageDescription.
+
+# 6. Publish Native AOT
+dotnet publish src/AipmRegister.Cli -c Release -r osx-arm64 \
+  -p:PublishAot=true -p:InvariantGlobalization=true -o out/cli-aot
+```
+
+The first scan asks for Location permission (macOS 14+ needs it for SSID
+visibility). Approve once and the rest of the flow runs without prompts.
 
 ### CLI usage
 ```
@@ -155,11 +276,13 @@ aipm-register-cli \
   --home-password 'p@ss'
 ```
 
-On **Windows** the CLI/GUI uses `WindowsWifiAdapter` (Win32 wlanapi.dll
-via ManagedNativeWifi) for fully automated Wi-Fi handling. On **Linux**
-and **macOS** it falls back to `NoopWifiAdapter` — the user is expected
-to have already joined the device hotspot manually (Linux/macOS native
-adapters are tracked as future work).
+Wi-Fi handling is fully automated on every supported OS:
+
+| OS | Adapter | Backend |
+|---|---|---|
+| **Windows** | `WindowsWifiAdapter` | `wlanapi.dll` via `ManagedNativeWifi` |
+| **Linux**   | `LinuxWifiAdapter`   | `wpa_supplicant` control socket (see [docs/linux-wifi-permissions.md](docs/linux-wifi-permissions.md)) |
+| **macOS**   | `MacOsWifiAdapter`   | `networksetup` + `system_profiler SPAirPortDataType -xml` |
 
 ---
 
@@ -172,13 +295,14 @@ adapters are tracked as future work).
 | C | .NET 10 solution skeleton (Core / CLI / Tests)  | ✅ |
 | D | Domain models with `System.Text.Json`           | ✅ |
 | E | API client, TCP sender, Notifier, Orchestrator  | ✅ |
-| F | xUnit + WireMock tests (15 cases, CI-verified)  | ✅ |
+| F | xUnit + WireMock tests (49 cases, CI-verified)  | ✅ |
 | G | GitHub Actions: multi-OS test + tagged release  | ✅ |
 | H | Win32 `IWifiAdapter` (ManagedNativeWifi)        | ✅ — `v0.2.0` |
 | I | Avalonia GUI + macOS `.app` bundle              | ✅ — `v0.3.0` |
 | J | Original 5-step wizard + 15-SKU catalog + Ko/En | ✅ — `v0.4.0` |
-| K | Linux / macOS native `IWifiAdapter`             | ⏳ |
-| L | Native AOT (Avalonia compatibility check)       | ⏳ |
+| K | Linux + macOS `IWifiAdapter`                    | ✅ — `v0.5.0` |
+| L | Native AOT for the CLI (3 OSes)                 | ✅ — `v0.6.0` |
+| M | Native AOT for the GUI (Avalonia trim cleanup)  | ⏳ — future |
 
 ---
 
