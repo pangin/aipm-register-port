@@ -16,9 +16,9 @@ internal sealed class ConsoleNotifier : IUserNotifier
         }
     }
 
-    public void Progress(string stage, string message)
+    public void Progress(RegistrationStage stage, string message)
     {
-        Write(ConsoleColor.Cyan, $"[{stage}]", message);
+        Write(ConsoleColor.Cyan, $"[{stage.ToString().ToLowerInvariant()}]", message);
     }
 
     private static void Write(ConsoleColor color, string tag, string message)

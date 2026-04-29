@@ -67,7 +67,7 @@ public partial class DevicePickerViewModel : ObservableObject
             {
                 Devices.Add(new DeviceCandidate(
                     Ssid: n.Ssid,
-                    Mac: ExtractMac(n.Ssid),
+                    Mac: HotspotSsidParser.ExtractMac(n.Ssid),
                     SignalQuality: n.SignalQuality));
             }
         }
@@ -90,14 +90,6 @@ public partial class DevicePickerViewModel : ObservableObject
 
     [RelayCommand]
     private void Back() => _nav.Go(WizardStep.ProductPicker);
-
-    /// "DWD-S120_3b12b9" → "3b12b9". Some SSIDs put the MAC tail after `_`,
-    /// others use `-`; treat both.
-    private static string ExtractMac(string ssid)
-    {
-        var idx = ssid.LastIndexOfAny(new[] { '_', '-' });
-        return idx >= 0 && idx < ssid.Length - 1 ? ssid[(idx + 1)..] : ssid;
-    }
 }
 
 public sealed record DeviceCandidate(string Ssid, string Mac, int SignalQuality);

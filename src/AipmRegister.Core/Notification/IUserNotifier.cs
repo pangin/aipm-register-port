@@ -10,5 +10,5 @@ public interface IUserNotifier
 
     /// Emits a progress message tagged with the current pipeline stage.
     /// Concrete implementations may color-code by stage in CLI/GUI.
-    void Progress(string stage, string message);
+    void Progress(RegistrationStage stage, string message);
 }

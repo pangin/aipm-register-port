@@ -38,6 +38,18 @@ public interface IRegistrationOrchestrator
         int deviceTcpPort,
         CancellationToken ct = default);
 
+    /// End-to-end Wi-Fi hand-off used by the wizard's "Registering" step
+    /// (and re-used by <see cref="RunAsync"/>): join the device hotspot,
+    /// push settings, leave the hotspot, rejoin the home network. Returns
+    /// the <see cref="DeviceModelInfo"/> derived from the device's TCP
+    /// reply.
+    Task<DeviceModelInfo> HandOffToDeviceAsync(
+        Account account,
+        ProductDefinition picked,
+        RegistrationRequest request,
+        IWifiAdapter wifi,
+        CancellationToken ct = default);
+
     /// Step 5/5 — keeps polling control/check, yielding one tick per call
     /// so the wizard can advance its ProgressBar in lock-step. The stream
     /// ends on the first terminal outcome (Success / AlreadyRegistered /

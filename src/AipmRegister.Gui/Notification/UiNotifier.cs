@@ -33,7 +33,8 @@ public sealed class UiNotifier : IUserNotifier
         }
     }
 
-    public void Progress(string stage, string message) => Append("info", stage, message);
+    public void Progress(RegistrationStage stage, string message)
+        => Append("info", stage.ToString().ToLowerInvariant(), message);
 
     private void Append(string level, string stage, string message)
     {

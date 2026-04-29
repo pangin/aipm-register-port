@@ -40,7 +40,6 @@ public partial class RegisteringViewModel : ObservableObject
     public async Task RunAsync()
     {
         if (_state.Account is null || _state.Product is null || _state.WifiAdapter is null) return;
-        var wifi = _state.WifiAdapter;
 
         IsBusy = true;
         ProgressValue = 0;
@@ -50,22 +49,15 @@ public partial class RegisteringViewModel : ObservableObject
 
         try
         {
-            // Step a: connect to device hotspot
-            await wifi.ConnectAsync(_state.DeviceHotspotSsid, string.Empty, WifiSecurity.Open, _cts.Token);
-
-            // Step b: TCP hand-off, derive deviceId
-            var info = await _orchestrator.SendDeviceSettingsAsync(
-                _state.Account, _state.Product,
-                _state.DeviceHotspotSsid,
-                _state.HomeSsid, _state.HomePassword,
-                _state.DeviceTcpHost, _state.DeviceTcpPort,
-                _cts.Token);
+            // Steps a-c: hotspot join → TCP push → rejoin home. The
+            // orchestrator's HandOffToDeviceAsync owns the flow so the
+            // CLI and GUI share the same logic; this VM only observes
+            // progress + decides UI state.
+            var request = BuildRequest();
+            var info = await _orchestrator.HandOffToDeviceAsync(
+                _state.Account, _state.Product, request, _state.WifiAdapter, _cts.Token);
             _state.DeviceId = info.DeviceId;
             _state.DeviceMac = info.Mac;
-
-            // Step c: rejoin home network so we can poll cloud
-            await wifi.DisconnectAndForgetAsync(_state.DeviceHotspotSsid, _cts.Token);
-            await wifi.ConnectAsync(_state.HomeSsid, _state.HomePassword, WifiSecurity.Wpa2Personal, _cts.Token);
 
             // Step d: poll until terminal outcome
             await foreach (var tick in _orchestrator.PollRegistrationAsync(
@@ -111,6 +103,17 @@ public partial class RegisteringViewModel : ObservableObject
             _cts = null;
         }
     }
+
+    private RegistrationRequest BuildRequest() => new(
+        AuthCode8Digits:        _state.AuthCode,
+        HomeSsid:               _state.HomeSsid,
+        HomePassword:           _state.HomePassword,
+        DeviceHotspotSsid:      _state.DeviceHotspotSsid,
+        DeviceHotspotPassword:  string.Empty,
+        DeviceTcpHost:          _state.DeviceTcpHost,
+        DeviceTcpPort:          _state.DeviceTcpPort,
+        MaxControlCheckAttempts:ProgressMaximum,
+        PollInterval:           TimeSpan.FromSeconds(2));
 
     [RelayCommand]
     private void Back()

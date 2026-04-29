@@ -139,11 +139,11 @@ public sealed class RegistrationOrchestratorTests
         public List<string> Infos { get; } = new();
         public List<string> Warnings { get; } = new();
         public List<string> Errors { get; } = new();
-        public List<(string Stage, string Msg)> ProgressEvents { get; } = new();
+        public List<(RegistrationStage Stage, string Msg)> ProgressEvents { get; } = new();
 
         public void Info(string m)  => Infos.Add(m);
         public void Warn(string m)  => Warnings.Add(m);
         public void Error(string m, Exception? cause = null) => Errors.Add(m);
-        public void Progress(string s, string m) => ProgressEvents.Add((s, m));
+        public void Progress(RegistrationStage s, string m) => ProgressEvents.Add((s, m));
     }
 }

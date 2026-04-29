@@ -45,7 +45,7 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         int deviceTcpPort,
         CancellationToken ct = default)
     {
-        var mac = ResolveDeviceMac(deviceHotspotSsid);
+        var mac = HotspotSsidParser.ExtractMac(deviceHotspotSsid);
         var settings = BuildDeviceSettings(account, homeSsid, homePassword, mac, picked.ModelCode);
         var reply = await _tcp.SendSettingsAsync(deviceTcpHost, deviceTcpPort, settings, ct);
 
@@ -65,6 +65,35 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         var deviceId = $"{_backend.Company}-{modelCode}-{mac}";
         _logger.LogInformation("Assembled deviceId={DeviceId} (model={Model}, mac={Mac})", deviceId, modelCode, mac);
         return new DeviceModelInfo(mac, modelCode, deviceId);
+    }
+
+    public async Task<DeviceModelInfo> HandOffToDeviceAsync(
+        Account account,
+        ProductDefinition picked,
+        RegistrationRequest request,
+        IWifiAdapter wifi,
+        CancellationToken ct = default)
+    {
+        _notifier.Progress(RegistrationStage.Wifi, $"Connecting to device hotspot \"{request.DeviceHotspotSsid}\"...");
+        await wifi.ConnectAsync(
+            request.DeviceHotspotSsid,
+            request.DeviceHotspotPassword,
+            WifiSecurity.Open,
+            ct);
+
+        _notifier.Progress(RegistrationStage.Device, $"Pushing settings to device at {request.DeviceTcpHost}:{request.DeviceTcpPort}...");
+        var info = await SendDeviceSettingsAsync(
+            account, picked,
+            request.DeviceHotspotSsid,
+            request.HomeSsid, request.HomePassword,
+            request.DeviceTcpHost, request.DeviceTcpPort,
+            ct);
+
+        await wifi.DisconnectAndForgetAsync(request.DeviceHotspotSsid, ct);
+        _notifier.Progress(RegistrationStage.Wifi, $"Rejoining home network \"{request.HomeSsid}\"...");
+        await wifi.ConnectAsync(request.HomeSsid, request.HomePassword, WifiSecurity.Wpa2Personal, ct);
+
+        return info;
     }
 
     public async IAsyncEnumerable<ControlCheckTick> PollRegistrationAsync(
@@ -108,7 +137,7 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
     {
         var pollInterval = request.PollInterval ?? TimeSpan.FromSeconds(2);
 
-        _notifier.Progress("auth", "Exchanging 8-digit code for account info...");
+        _notifier.Progress(RegistrationStage.Auth, "Exchanging 8-digit code for account info...");
         Account? account;
         try
         {
@@ -127,48 +156,21 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
             return new RegistrationResult(RegistrationStatus.AuthCodeInvalidOrExpired, null, null, msg);
         }
 
-        _notifier.Progress("wifi", $"Connecting to device hotspot \"{request.DeviceHotspotSsid}\"...");
+        var picked = HotspotSsidParser.ResolveProduct(request.DeviceHotspotSsid);
+        DeviceModelInfo info;
         try
         {
-            await wifi.ConnectAsync(
-                request.DeviceHotspotSsid,
-                request.DeviceHotspotPassword,
-                WifiSecurity.Open,
-                ct);
+            info = await HandOffToDeviceAsync(account, picked, request, wifi, ct);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _notifier.Error("Failed to join device hotspot.", ex);
-            return new RegistrationResult(RegistrationStatus.DeviceNotResponding, account.UserId, null, ex.Message);
+            _notifier.Error("Wi-Fi / TCP hand-off to device failed.", ex);
+            return new RegistrationResult(RegistrationStatus.DeviceTcpFailed, account.UserId, null, ex.Message);
         }
 
         try
         {
-            // Use the catalog if a tag was provided, otherwise fall back to the
-            // legacy heuristic (the CLI still accepts free-form hotspot SSIDs).
-            var picked = ResolveProductFromHotspotSsid(request.DeviceHotspotSsid);
-            DeviceModelInfo info;
-            try
-            {
-                _notifier.Progress("device", $"Pushing settings to device at {request.DeviceTcpHost}:{request.DeviceTcpPort}...");
-                info = await SendDeviceSettingsAsync(
-                    account, picked,
-                    request.DeviceHotspotSsid,
-                    request.HomeSsid, request.HomePassword,
-                    request.DeviceTcpHost, request.DeviceTcpPort,
-                    ct);
-            }
-            catch (Exception ex)
-            {
-                _notifier.Error("TCP push to device failed.", ex);
-                return new RegistrationResult(RegistrationStatus.DeviceTcpFailed, account.UserId, null, ex.Message);
-            }
-
-            await wifi.DisconnectAndForgetAsync(request.DeviceHotspotSsid, ct);
-            _notifier.Progress("wifi", $"Rejoining home network \"{request.HomeSsid}\"...");
-            await wifi.ConnectAsync(request.HomeSsid, request.HomePassword, WifiSecurity.Wpa2Personal, ct);
-
-            _notifier.Progress("poll", "Waiting for cloud to register the device...");
+            _notifier.Progress(RegistrationStage.Poll, "Waiting for cloud to register the device...");
             ControlCheckTick? terminal = null;
             await foreach (var tick in PollRegistrationAsync(account, info.DeviceId,
                                        request.MaxControlCheckAttempts, pollInterval, ct))
@@ -214,31 +216,4 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         Latitude:          account.Latitude,
         Longitude:         account.Longitude,
         Topic:             _backend.Topic);
-
-    /// Walk the catalog and pick whatever product owns the given hotspot SSID.
-    /// Falls back to a synthetic ProductDefinition built from the SSID prefix
-    /// so the CLI can still target unknown SKUs.
-    private static ProductDefinition ResolveProductFromHotspotSsid(string ssid)
-    {
-        foreach (var p in ProductCatalog.All)
-        {
-            if (p.IsHotspotOf(ssid)) return p;
-        }
-        var token = ssid.Split('_')[0];
-        return new ProductDefinition(
-            Tag: token.StartsWith("DWD-", StringComparison.Ordinal) ? token[4..] : token,
-            DisplayKey: "Product.Unknown.Name",
-            IconKey: "Icon.SmartPlug",
-            PrimaryPrefix: token,
-            SecondaryPrefix: string.Empty,
-            ModelCode: "UNKNOWN");
-    }
-
-    /// Recovered from frmMain (lines 1862~1864): the device's own hotspot
-    /// SSID encodes the MAC suffix.
-    private static string ResolveDeviceMac(string hotspotSsid)
-    {
-        var parts = hotspotSsid.Split('_', '-');
-        return parts.Length > 0 ? parts[^1] : hotspotSsid;
-    }
 }
