@@ -5,7 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace AipmRegister.Gui.ViewModels;
 
-public partial class MainViewModel : ObservableObject, IWizardNavigator
+public partial class MainViewModel : ObservableObject
 {
     public MainViewModel(
         WelcomeViewModel welcome,

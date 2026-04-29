@@ -77,7 +77,8 @@ public partial class App : Application
 
         // Wizard state + each step ViewModel + the main shell ViewModel.
         builder.Services.AddSingleton<WizardState>();
-        builder.Services.AddSingleton<IWizardNavigator>(sp => sp.GetRequiredService<MainViewModel>());
+        builder.Services.AddSingleton<WizardNavigator>();
+        builder.Services.AddSingleton<IWizardNavigator>(sp => sp.GetRequiredService<WizardNavigator>());
         builder.Services.AddSingleton<WelcomeViewModel>();
         builder.Services.AddSingleton<WifiPickerViewModel>();
         builder.Services.AddSingleton<AuthCodeViewModel>();
@@ -91,6 +92,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var vm = Host.Services.GetRequiredService<MainViewModel>();
+            Host.Services.GetRequiredService<WizardNavigator>().SetHandler(vm.Go);
             desktop.MainWindow = new MainWindow { DataContext = vm };
             desktop.Exit += (_, _) =>
             {

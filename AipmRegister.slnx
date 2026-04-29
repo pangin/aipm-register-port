@@ -10,5 +10,6 @@
     <Project Path="tests/AipmRegister.Core.Tests/AipmRegister.Core.Tests.csproj" />
     <Project Path="tests/AipmRegister.Wifi.Linux.Tests/AipmRegister.Wifi.Linux.Tests.csproj" />
     <Project Path="tests/AipmRegister.Wifi.MacOs.Tests/AipmRegister.Wifi.MacOs.Tests.csproj" />
+    <Project Path="tests/AipmRegister.Gui.Wizard.Tests/AipmRegister.Gui.Wizard.Tests.csproj" />
   </Folder>
 </Solution>
