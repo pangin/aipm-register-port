@@ -43,7 +43,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      # ---------- CLI ----------
+      # ---------- CLI (self-contained single-file) ----------
       - name: publish CLI
         shell: bash
         run: |
@@ -57,6 +57,21 @@ jobs:
           mv "out/cli/AipmRegister.Cli${{ matrix.ext }}" \
              "out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}"
           ls -la out/cli
+
+      # ---------- CLI (Native AOT) ----------
+      - name: publish CLI (Native AOT)
+        shell: bash
+        run: |
+          dotnet publish src/AipmRegister.Cli \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            -p:PublishAot=true \
+            -p:InvariantGlobalization=true \
+            -p:IlcOptimizationPreference=Size \
+            -o out/cli-aot
+          mv "out/cli-aot/AipmRegister.Cli${{ matrix.ext }}" \
+             "out/cli-aot/aipm-register-cli-aot-${{ matrix.suffix }}${{ matrix.ext }}"
+          ls -la out/cli-aot
 
       # ---------- GUI ----------
       - name: publish GUI
@@ -123,18 +138,20 @@ jobs:
           ls -la out/gui
 
       # ---------- Upload ----------
-      - name: upload (CLI + non-macOS GUI)
+      - name: upload (CLI + AOT + non-macOS GUI)
         if: matrix.is_mac == false
         uses: softprops/action-gh-release@v2
         with:
           files: |
             out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}
+            out/cli-aot/aipm-register-cli-aot-${{ matrix.suffix }}${{ matrix.ext }}
             out/gui/aipm-register-gui-${{ matrix.suffix }}${{ matrix.ext }}
 
-      - name: upload (CLI + macOS .app.zip)
+      - name: upload (CLI + AOT + macOS .app.zip)
         if: matrix.is_mac == true
         uses: softprops/action-gh-release@v2
         with:
           files: |
             out/cli/aipm-register-cli-${{ matrix.suffix }}
+            out/cli-aot/aipm-register-cli-aot-${{ matrix.suffix }}
             out/gui/aipm-register-gui-${{ matrix.suffix }}.app.zip

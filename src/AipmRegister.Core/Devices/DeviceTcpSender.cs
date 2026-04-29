@@ -2,16 +2,12 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using AipmRegister.Core.Models;
+using AipmRegister.Core.Models.Json;
 
 namespace AipmRegister.Core.Devices;
 
 public sealed class DeviceTcpSender : IDeviceTcpSender
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = false,
-    };
-
     public async Task<string> SendSettingsAsync(
         string deviceHost,
         int port,
@@ -22,7 +18,7 @@ public sealed class DeviceTcpSender : IDeviceTcpSender
         await client.ConnectAsync(deviceHost, port, ct);
 
         await using var stream = client.GetStream();
-        var json = JsonSerializer.Serialize(settings, JsonOptions);
+        var json = JsonSerializer.Serialize(settings, AipmJsonContext.Default.DeviceSettings);
         var payload = Encoding.UTF8.GetBytes(json);
         await stream.WriteAsync(payload, ct);
         await stream.FlushAsync(ct);

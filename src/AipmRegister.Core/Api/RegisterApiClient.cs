@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using AipmRegister.Core.Models;
+using AipmRegister.Core.Models.Json;
 
 namespace AipmRegister.Core.Api;
 
@@ -10,12 +12,6 @@ public sealed class RegisterApiClient : IRegisterApiClient
 {
     private readonly HttpClient _http;
     private readonly BackendOptions _backend;
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.Never,
-        PropertyNameCaseInsensitive = true,
-    };
 
     public RegisterApiClient(HttpClient http, BackendOptions backend)
     {
@@ -42,7 +38,8 @@ public sealed class RegisterApiClient : IRegisterApiClient
         }
 
         var body = new GetPcKeyRequest(new GetPcKeyAccount(pcTempKey));
-        using var response = await _http.PostAsJsonAsync("v1/accounts/post/getPckey", body, JsonOptions, ct);
+        using var content = JsonContent.Create(body, AipmJsonContext.Default.GetPcKeyRequest);
+        using var response = await _http.PostAsync("v1/accounts/post/getPckey", content, ct);
 
         var raw = await response.Content.ReadAsStringAsync(ct);
         if (response.StatusCode != HttpStatusCode.OK || raw.Contains("TIMEFAILED", StringComparison.OrdinalIgnoreCase))
@@ -50,7 +47,7 @@ public sealed class RegisterApiClient : IRegisterApiClient
             return null;
         }
 
-        var parsed = JsonSerializer.Deserialize<GetPcKeyResponse>(raw, JsonOptions);
+        var parsed = JsonSerializer.Deserialize(raw, AipmJsonContext.Default.GetPcKeyResponse);
         return parsed?.Account;
     }
 
@@ -70,7 +67,8 @@ public sealed class RegisterApiClient : IRegisterApiClient
                         "r")),
             });
 
-        using var response = await _http.PostAsJsonAsync("v1/devices/control/check", body, JsonOptions, ct);
+        using var content = JsonContent.Create(body, AipmJsonContext.Default.ControlCheckRequest);
+        using var response = await _http.PostAsync("v1/devices/control/check", content, ct);
         var raw = await response.Content.ReadAsStringAsync(ct);
 
         return (ClassifyOutcome(response.StatusCode, raw), raw);
