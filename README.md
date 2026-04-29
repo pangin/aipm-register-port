@@ -324,7 +324,10 @@ Wi-Fi handling is fully automated on every supported OS:
 | J | Original 5-step wizard + 15-SKU catalog + Ko/En | ✅ — `v0.4.0` |
 | K | Linux + macOS `IWifiAdapter`                    | ✅ — `v0.5.0` |
 | L | Native AOT for the CLI (3 OSes)                 | ✅ — `v0.6.0` |
-| M | Native AOT for the GUI (Avalonia trim cleanup)  | ⏳ — future |
+| M | Multi-wireless-interface selection (CLI + GUI)  | ✅ — `v1.3.0` |
+| N | Modularization audit (Hosting, parsers, factories) | ✅ — `v1.3.0` |
+| O | Apache-2.0 relicense + NOTICE                   | ✅ — `v1.3.0` |
+| P | Native AOT for the GUI (Avalonia trim cleanup)  | ⏳ — future |
 
 ---
 
