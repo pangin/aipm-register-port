@@ -480,3 +480,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local publish output (the README's `dotnet publish ... -o out/...` examples
+# write to the repo root; tagged releases publish from CI, not from a tree
+# checked-in here).
+out/
