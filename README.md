@@ -131,7 +131,7 @@ Download the latest [Release](https://github.com/pangin/aipm-register-port/relea
 | Form factor | win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-arm64 | osx-x64 |
 |---|---|---|---|---|---|---|
 | **CLI self-contained** | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ Mach-O | ✅ Mach-O |
-| **CLI Native AOT** ⚡   | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ Mach-O | ✅ Mach-O |
+| **CLI Native AOT** ⚡   | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ Mach-O | — (cross-build) |
 | **GUI** (Avalonia)     | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ `.app.zip` | ✅ `.app.zip` |
 
 Naming pattern:
