@@ -31,4 +31,16 @@ public sealed record WifiNetwork(
     string Ssid,
     int SignalQuality,
     WifiSecurity Security,
-    string Band);
+    string Band)
+{
+    /// True when this AP can host a DAWON IoT device pairing — the device
+    /// MCUs only support 2.4GHz with WEP/WPA-Personal/WPA2-Personal. The
+    /// original UI paints the row green when this is true and orange
+    /// otherwise (frmMain.cs:1267-1275).
+    public bool IsRecommended =>
+        Band.StartsWith("2.4", StringComparison.Ordinal) || Band == "2G"
+            ? Security is WifiSecurity.Wep
+                or WifiSecurity.WpaPersonal
+                or WifiSecurity.Wpa2Personal
+            : false;
+}

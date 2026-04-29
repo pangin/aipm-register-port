@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using AipmRegister.Core.Api;
 using AipmRegister.Core.Devices;
 using AipmRegister.Core.Models;
@@ -32,16 +33,83 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         _logger = logger;
     }
 
+    // ----- Step hooks (used by the wizard GUI) ------------------------------
+
+    public Task<Account?> ExchangeAuthCodeAsync(string authCode8Digits, CancellationToken ct = default)
+        => _api.GetPcKeyAsync(authCode8Digits, ct);
+
+    public async Task<DeviceModelInfo> SendDeviceSettingsAsync(
+        Account account,
+        ProductDefinition picked,
+        string deviceHotspotSsid,
+        string homeSsid,
+        string homePassword,
+        string deviceTcpHost,
+        int deviceTcpPort,
+        CancellationToken ct = default)
+    {
+        var mac = ResolveDeviceMac(deviceHotspotSsid);
+        var settings = BuildDeviceSettings(account, homeSsid, homePassword, mac, picked.ModelCode);
+        var reply = await _tcp.SendSettingsAsync(deviceTcpHost, deviceTcpPort, settings, ct);
+
+        // The device replies with its own SSID-style identifier; resolve via
+        // the catalog so our model code matches what the cloud assigns.
+        var modelCode = string.IsNullOrWhiteSpace(reply)
+            ? picked.ModelCode
+            : ProductCatalog.ResolveModelCode(reply.Trim().Trim('"'), picked);
+        if (string.IsNullOrEmpty(modelCode)) modelCode = picked.ModelCode;
+
+        var deviceId = $"{_backend.Company}-{modelCode}-{mac}";
+        _logger.LogInformation("Assembled deviceId={DeviceId} (model={Model}, mac={Mac})", deviceId, modelCode, mac);
+        return new DeviceModelInfo(mac, modelCode, deviceId);
+    }
+
+    public async IAsyncEnumerable<ControlCheckTick> PollRegistrationAsync(
+        Account account,
+        string deviceId,
+        int maxAttempts,
+        TimeSpan pollInterval,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        int notRegistered = 0;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var (outcome, raw) = await _api.ControlCheckAsync(account, deviceId, ct);
+            _logger.LogDebug("Attempt {Attempt}/{Max}: {Outcome}", attempt, maxAttempts, outcome);
+
+            yield return new ControlCheckTick(attempt, maxAttempts, outcome, raw);
+
+            switch (outcome)
+            {
+                case ControlCheckOutcome.Success:
+                case ControlCheckOutcome.AlreadyRegistered:
+                case ControlCheckOutcome.AuthCodeExpired:
+                    yield break;
+
+                case ControlCheckOutcome.NotRegisteredExceededAttempts:
+                    if (++notRegistered > 10) yield break;
+                    break;
+            }
+
+            if (attempt < maxAttempts)
+            {
+                await Task.Delay(pollInterval, ct);
+            }
+        }
+    }
+
+    // ----- All-in-one (CLI) -------------------------------------------------
+
     public async Task<RegistrationResult> RunAsync(RegistrationRequest request, CancellationToken ct = default)
     {
         var pollInterval = request.PollInterval ?? TimeSpan.FromSeconds(2);
 
-        // Stage 1 — exchange auth code for account
         _notifier.Progress("auth", "Exchanging 8-digit code for account info...");
         Account? account;
         try
         {
-            account = await _api.GetPcKeyAsync(request.AuthCode8Digits, ct);
+            account = await ExchangeAuthCodeAsync(request.AuthCode8Digits, ct);
         }
         catch (ArgumentException ex)
         {
@@ -55,9 +123,7 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
             _notifier.Warn(msg);
             return new RegistrationResult(RegistrationStatus.AuthCodeInvalidOrExpired, null, null, msg);
         }
-        _logger.LogInformation("Account ok: user_id={UserId}", account.UserId);
 
-        // Stage 2 — connect to device hotspot
         _notifier.Progress("wifi", $"Connecting to device hotspot \"{request.DeviceHotspotSsid}\"...");
         try
         {
@@ -75,16 +141,19 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
 
         try
         {
-            // Stage 3 — push settings over TCP, derive device_id
-            _notifier.Progress("device", $"Pushing settings to device at {request.DeviceTcpHost}:{request.DeviceTcpPort}...");
-            string mac = ResolveDeviceMac(request.DeviceHotspotSsid);
-            string model;
+            // Use the catalog if a tag was provided, otherwise fall back to the
+            // legacy heuristic (the CLI still accepts free-form hotspot SSIDs).
+            var picked = ResolveProductFromHotspotSsid(request.DeviceHotspotSsid);
+            DeviceModelInfo info;
             try
             {
-                var settings = BuildDeviceSettings(account, request, mac);
-                var reply = await _tcp.SendSettingsAsync(
-                    request.DeviceTcpHost, request.DeviceTcpPort, settings, ct);
-                model = ExtractModelFromReply(reply);
+                _notifier.Progress("device", $"Pushing settings to device at {request.DeviceTcpHost}:{request.DeviceTcpPort}...");
+                info = await SendDeviceSettingsAsync(
+                    account, picked,
+                    request.DeviceHotspotSsid,
+                    request.HomeSsid, request.HomePassword,
+                    request.DeviceTcpHost, request.DeviceTcpPort,
+                    ct);
             }
             catch (Exception ex)
             {
@@ -92,59 +161,32 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
                 return new RegistrationResult(RegistrationStatus.DeviceTcpFailed, account.UserId, null, ex.Message);
             }
 
-            string deviceId = $"{_backend.Company}-{model}-{mac}";
-            _logger.LogInformation("Device id assembled: {DeviceId}", deviceId);
-
-            // Stage 4 — leave hotspot, rejoin home network so we can poll cloud
             await _wifi.DisconnectAndForgetAsync(request.DeviceHotspotSsid, ct);
             _notifier.Progress("wifi", $"Rejoining home network \"{request.HomeSsid}\"...");
             await _wifi.ConnectAsync(request.HomeSsid, request.HomePassword, WifiSecurity.Wpa2Personal, ct);
 
-            // Stage 5 — poll registration status
             _notifier.Progress("poll", "Waiting for cloud to register the device...");
-            int notRegistered = 0;
-            for (int attempt = 1; attempt <= request.MaxControlCheckAttempts; attempt++)
+            ControlCheckTick? terminal = null;
+            await foreach (var tick in PollRegistrationAsync(account, info.DeviceId,
+                                       request.MaxControlCheckAttempts, pollInterval, ct))
             {
-                ct.ThrowIfCancellationRequested();
-                var (outcome, raw) = await _api.ControlCheckAsync(account, deviceId, ct);
-                _logger.LogDebug("Attempt {Attempt}: {Outcome} :: {Raw}", attempt, outcome, raw);
-
-                switch (outcome)
+                terminal = tick;
+                if (tick.Outcome is ControlCheckOutcome.Success
+                                  or ControlCheckOutcome.AlreadyRegistered
+                                  or ControlCheckOutcome.AuthCodeExpired)
                 {
-                    case ControlCheckOutcome.Success:
-                        _notifier.Info("Registration succeeded.");
-                        return new RegistrationResult(RegistrationStatus.Succeeded, account.UserId, deviceId, null);
-
-                    case ControlCheckOutcome.AlreadyRegistered:
-                        _notifier.Warn("Device already registered to another account.");
-                        return new RegistrationResult(RegistrationStatus.AlreadyRegistered, account.UserId, deviceId, "STATUSERROR");
-
-                    case ControlCheckOutcome.AuthCodeExpired:
-                        return new RegistrationResult(RegistrationStatus.AuthCodeInvalidOrExpired, account.UserId, deviceId, "TIMEFAILED");
-
-                    case ControlCheckOutcome.NotRegisteredExceededAttempts:
-                        if (++notRegistered > 10)
-                        {
-                            const string msg = "Device did not register after 10 NOTREGISTERED responses. Reset the device and retry.";
-                            _notifier.Warn(msg);
-                            return new RegistrationResult(RegistrationStatus.DeviceNotResponding, account.UserId, deviceId, msg);
-                        }
-                        break;
-
-                    case ControlCheckOutcome.UnknownError:
-                    case ControlCheckOutcome.Pending:
-                    default:
-                        break;
+                    break;
                 }
-
-                await Task.Delay(pollInterval, ct);
             }
 
-            return new RegistrationResult(
-                RegistrationStatus.DeviceNotResponding,
-                account.UserId,
-                deviceId,
-                $"Timed out after {request.MaxControlCheckAttempts} polls.");
+            return terminal?.Outcome switch
+            {
+                ControlCheckOutcome.Success                      => new RegistrationResult(RegistrationStatus.Succeeded,                 account.UserId, info.DeviceId, null),
+                ControlCheckOutcome.AlreadyRegistered            => new RegistrationResult(RegistrationStatus.AlreadyRegistered,         account.UserId, info.DeviceId, "STATUSERROR"),
+                ControlCheckOutcome.AuthCodeExpired              => new RegistrationResult(RegistrationStatus.AuthCodeInvalidOrExpired,  account.UserId, info.DeviceId, "TIMEFAILED"),
+                ControlCheckOutcome.NotRegisteredExceededAttempts=> new RegistrationResult(RegistrationStatus.DeviceNotResponding,      account.UserId, info.DeviceId, "Device did not register after repeated NOTREGISTERED responses."),
+                _                                                => new RegistrationResult(RegistrationStatus.DeviceNotResponding,      account.UserId, info.DeviceId, $"Timed out after {request.MaxControlCheckAttempts} polls."),
+            };
         }
         catch (OperationCanceledException)
         {
@@ -152,36 +194,48 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         }
     }
 
-    private DeviceSettings BuildDeviceSettings(Account account, RegistrationRequest req, string mac) => new(
+    // ----- Helpers ----------------------------------------------------------
+
+    private DeviceSettings BuildDeviceSettings(Account account, string homeSsid, string homePassword, string mac, string model) => new(
         Mac:               mac,
         ApiServerAddress:  _backend.ApiHost,
         ApiServerPort:     _backend.ApiPort.ToString(),
         MqttServerAddress: _backend.MqttHost,
         MqttServerPort:    _backend.MqttPort.ToString(),
         SslSupport:        _backend.SslSupport,
-        HomeSsid:          req.HomeSsid,
-        HomePassword:      req.HomePassword,
-        UserId:             account.UserId,
+        HomeSsid:          homeSsid,
+        HomePassword:      homePassword,
+        UserId:            account.UserId,
         Company:           _backend.Company,
-        Model:             string.Empty, // placeholder; device replies with model
+        Model:             model,
         Latitude:          account.Latitude,
         Longitude:         account.Longitude,
         Topic:             _backend.Topic);
 
-    /// Heuristic recovered from frmMain (lines 1862~1864): the device's own
-    /// hotspot SSID encodes the MAC suffix, so we use that as the canonical
-    /// MAC. Real implementations will replace this with the value the device
-    /// reports during the TCP exchange.
+    /// Walk the catalog and pick whatever product owns the given hotspot SSID.
+    /// Falls back to a synthetic ProductDefinition built from the SSID prefix
+    /// so the CLI can still target unknown SKUs.
+    private static ProductDefinition ResolveProductFromHotspotSsid(string ssid)
+    {
+        foreach (var p in ProductCatalog.All)
+        {
+            if (p.IsHotspotOf(ssid)) return p;
+        }
+        var token = ssid.Split('_')[0];
+        return new ProductDefinition(
+            Tag: token.StartsWith("DWD-", StringComparison.Ordinal) ? token[4..] : token,
+            DisplayKey: "Product.Unknown.Name",
+            IconKey: "Icon.SmartPlug",
+            PrimaryPrefix: token,
+            SecondaryPrefix: string.Empty,
+            ModelCode: "UNKNOWN");
+    }
+
+    /// Recovered from frmMain (lines 1862~1864): the device's own hotspot
+    /// SSID encodes the MAC suffix.
     private static string ResolveDeviceMac(string hotspotSsid)
     {
         var parts = hotspotSsid.Split('_', '-');
         return parts.Length > 0 ? parts[^1] : hotspotSsid;
-    }
-
-    private static string ExtractModelFromReply(string reply)
-    {
-        if (string.IsNullOrWhiteSpace(reply)) return "UNKNOWN";
-        var trimmed = reply.Trim().Trim('"');
-        return trimmed.Length == 0 ? "UNKNOWN" : trimmed;
     }
 }
