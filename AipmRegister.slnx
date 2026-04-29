@@ -3,8 +3,12 @@
     <Project Path="src/AipmRegister.Cli/AipmRegister.Cli.csproj" />
     <Project Path="src/AipmRegister.Core/AipmRegister.Core.csproj" />
     <Project Path="src/AipmRegister.Gui/AipmRegister.Gui.csproj" />
+    <Project Path="src/AipmRegister.Wifi.Linux/AipmRegister.Wifi.Linux.csproj" />
+    <Project Path="src/AipmRegister.Wifi.MacOs/AipmRegister.Wifi.MacOs.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AipmRegister.Core.Tests/AipmRegister.Core.Tests.csproj" />
+    <Project Path="tests/AipmRegister.Wifi.Linux.Tests/AipmRegister.Wifi.Linux.Tests.csproj" />
+    <Project Path="tests/AipmRegister.Wifi.MacOs.Tests/AipmRegister.Wifi.MacOs.Tests.csproj" />
   </Folder>
 </Solution>

@@ -51,6 +51,10 @@ public partial class App : Application
         {
             builder.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
         }
+#elif LINUX
+        builder.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.Linux.LinuxWifiAdapter>();
+#elif MACOS
+        builder.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.MacOs.MacOsWifiAdapter>();
 #else
         builder.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
 #endif

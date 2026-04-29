@@ -63,6 +63,10 @@ root.SetAction(async (parseResult, ct) =>
     {
         host.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
     }
+#elif LINUX
+    host.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.Linux.LinuxWifiAdapter>();
+#elif MACOS
+    host.Services.AddSingleton<IWifiAdapter, AipmRegister.Wifi.MacOs.MacOsWifiAdapter>();
 #else
     host.Services.AddSingleton<IWifiAdapter, NoopWifiAdapter>();
 #endif
