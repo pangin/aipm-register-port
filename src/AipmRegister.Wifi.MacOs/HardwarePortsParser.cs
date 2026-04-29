@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using AipmRegister.Core.Wifi;
 
 namespace AipmRegister.Wifi.MacOs;
@@ -22,8 +21,7 @@ namespace AipmRegister.Wifi.MacOs;
 /// <see cref="WifiInterface.DisplayName"/> is "{port} ({device})" so
 /// multiple Wi-Fi entries on the same machine remain
 /// human-distinguishable.
-[SupportedOSPlatform("macos")]
-internal static class HardwarePortsParser
+public static class HardwarePortsParser
 {
     private const string HardwarePortPrefix = "Hardware Port:";
     private const string DevicePrefix       = "Device:";

@@ -1,5 +1,3 @@
-using System.Runtime.Versioning;
-
 namespace AipmRegister.Wifi.Linux;
 
 /// Pure parser for `iw dev` output, separated from the I/O so it's
@@ -19,8 +17,7 @@ namespace AipmRegister.Wifi.Linux;
 ///
 /// We only need the interface names — every leading-whitespace line that
 /// starts with "Interface ".
-[SupportedOSPlatform("linux")]
-internal static class WirelessInterfaceParser
+public static class WirelessInterfaceParser
 {
     private const string InterfacePrefix = "Interface ";
 
