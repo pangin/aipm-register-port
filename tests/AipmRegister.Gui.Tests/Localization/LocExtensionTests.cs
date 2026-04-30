@@ -15,7 +15,8 @@ namespace AipmRegister.Gui.Tests.Localization;
 /// notifications. v1.7.1 swaps to a manual reactive subscription —
 /// these tests pin both the parse-time value and the live update
 /// contract directly.
-public sealed class LocExtensionTests : IClassFixture<HeadlessFixture>
+[Collection(HeadlessCollection.Name)]
+public sealed class LocExtensionTests
 {
     private readonly HeadlessFixture _headless;
     public LocExtensionTests(HeadlessFixture headless) => _headless = headless;

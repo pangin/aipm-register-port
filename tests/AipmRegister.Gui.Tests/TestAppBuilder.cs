@@ -28,9 +28,15 @@ public static class TestAppBuilder
 }
 
 /// xUnit-compatible fixture wrapping an Avalonia headless session.
-/// Tests that touch Avalonia objects use <c>IClassFixture&lt;HeadlessFixture&gt;</c>
-/// and call <c>Fixture.Run(() =&gt; ...)</c> so the action executes on
-/// the dispatcher thread the headless platform expects.
+/// Tests that touch Avalonia objects join the <see cref="HeadlessCollection"/>
+/// (via <c>[Collection(HeadlessCollection.Name)]</c>) and call
+/// <c>Fixture.Run(() =&gt; ...)</c> so the action executes on the
+/// dispatcher thread the headless platform expects.
+///
+/// A single <see cref="HeadlessUnitTestSession"/> is shared across every
+/// test in the collection — the Avalonia headless platform initializes
+/// global statics (the locator + dispatcher), so two parallel sessions
+/// race each other and corrupt the locator's dictionary.
 public sealed class HeadlessFixture : IDisposable
 {
     public HeadlessUnitTestSession Session { get; }
@@ -41,4 +47,10 @@ public sealed class HeadlessFixture : IDisposable
     public Task Run(Action action) => Session.Dispatch(action, default);
 
     public void Dispose() => Session.Dispose();
+}
+
+[CollectionDefinition(Name)]
+public sealed class HeadlessCollection : ICollectionFixture<HeadlessFixture>
+{
+    public const string Name = "Headless Avalonia";
 }

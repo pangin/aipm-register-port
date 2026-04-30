@@ -32,6 +32,7 @@ public static class HotspotSsidParser
             Tag:             token.StartsWith("DWD-", StringComparison.Ordinal) ? token[4..] : token,
             DisplayKey:      "Product.Unknown.Name",
             IconKey:         "Icon.SmartPlug",
+            PhotoKey:        string.Empty,
             PrimaryPrefix:   token,
             SecondaryPrefix: string.Empty,
             ModelCode:       "UNKNOWN");
