@@ -80,7 +80,7 @@ public sealed class RegisterApiClient : IRegisterApiClient
 
         if (compact.Contains("TIMEFAILED"))         return ControlCheckOutcome.AuthCodeExpired;
         if (compact.Contains("STATUSERROR"))        return ControlCheckOutcome.AlreadyRegistered;
-        if (compact.Contains("NOTREGISTERED"))      return ControlCheckOutcome.NotRegisteredExceededAttempts;
+        if (compact.Contains("NOTREGISTERED"))      return ControlCheckOutcome.NotRegistered;
 
         if (status != HttpStatusCode.OK) return ControlCheckOutcome.UnknownError;
 

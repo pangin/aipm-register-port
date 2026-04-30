@@ -53,7 +53,7 @@ public interface IRegistrationOrchestrator
     /// Step 5/5 — keeps polling control/check, yielding one tick per call
     /// so the wizard can advance its ProgressBar in lock-step. The stream
     /// ends on the first terminal outcome (Success / AlreadyRegistered /
-    /// AuthCodeExpired / NotRegisteredExceededAttempts) or after maxAttempts.
+    /// AuthCodeExpired / NotRegistered) or after maxAttempts.
     IAsyncEnumerable<ControlCheckTick> PollRegistrationAsync(
         Account account,
         string deviceId,

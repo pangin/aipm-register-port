@@ -194,8 +194,17 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
                 case ControlCheckOutcome.AuthCodeExpired:
                     yield break;
 
-                case ControlCheckOutcome.NotRegisteredExceededAttempts:
-                    if (++notRegistered > 10) yield break;
+                case ControlCheckOutcome.NotRegistered:
+                    // frmMain.cs:2366 only declared "초기화 후 등록" terminal
+                    // when its 5-second timer had ticked more than 10 times
+                    // (≈50s of polling). At our 2-second pollInterval default,
+                    // 25 attempts cover the same wall-clock window. The
+                    // "ExceededAttempts" name (renamed away in v1.5.2) was
+                    // misleading because every NOTREGISTERED used to flip the
+                    // VM into the terminal branch immediately — that bug is
+                    // why macOS users saw the message before the device had
+                    // a chance to finish registering.
+                    if (++notRegistered > 25) yield break;
                     break;
             }
 
@@ -264,7 +273,7 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
                 ControlCheckOutcome.Success                      => new RegistrationResult(RegistrationStatus.Succeeded,                 account.UserId, info.DeviceId, null),
                 ControlCheckOutcome.AlreadyRegistered            => new RegistrationResult(RegistrationStatus.AlreadyRegistered,         account.UserId, info.DeviceId, "STATUSERROR"),
                 ControlCheckOutcome.AuthCodeExpired              => new RegistrationResult(RegistrationStatus.AuthCodeInvalidOrExpired,  account.UserId, info.DeviceId, "TIMEFAILED"),
-                ControlCheckOutcome.NotRegisteredExceededAttempts=> new RegistrationResult(RegistrationStatus.DeviceNotResponding,      account.UserId, info.DeviceId, "Device did not register after repeated NOTREGISTERED responses."),
+                ControlCheckOutcome.NotRegistered=> new RegistrationResult(RegistrationStatus.DeviceNotResponding,      account.UserId, info.DeviceId, "Device did not register after repeated NOTREGISTERED responses."),
                 _                                                => new RegistrationResult(RegistrationStatus.DeviceNotResponding,      account.UserId, info.DeviceId, $"Timed out after {request.MaxControlCheckAttempts} polls."),
             };
         }

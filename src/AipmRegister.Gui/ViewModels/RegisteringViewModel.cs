@@ -82,9 +82,12 @@ public partial class RegisteringViewModel : ObservableObject
                     case ControlCheckOutcome.AuthCodeExpired:
                         StatusText = _l["Error.AuthExpired"];
                         return;
-                    case ControlCheckOutcome.NotRegisteredExceededAttempts:
-                        StatusText = _l["Error.NotRegistered"];
-                        return;
+                    // NotRegistered isn't terminal here — the orchestrator's
+                    // PollRegistrationAsync counts repeats and ends the
+                    // stream once the count crosses the wall-clock-equivalent
+                    // threshold (frmMain.cs:2366). The fall-through below
+                    // shows "Error.NotRegistered" once the loop ends without
+                    // a terminal tick.
                 }
             }
             // Loop ended without terminal — treat as not responding.

@@ -172,6 +172,51 @@ public sealed class RegistrationOrchestratorTests
         Assert.Equal(2, controlCheckCalls);
     }
 
+    [Fact]
+    public async Task PollRegistration_DoesNotTerminate_OnFirstNotRegistered()
+    {
+        // frmMain.cs:2366 only declared NOTREGISTERED terminal after the
+        // 5s polling timer had ticked > 10 times (≈55s window). The
+        // pre-v1.5.2 RegisteringViewModel returned on the very first
+        // NOTREGISTERED tick — this test pins the orchestrator's correct
+        // "keep polling" behavior so the macOS regression cannot resurface.
+        var account = new Account("u1", "k1", "37", "127");
+        var sut = BuildSut(api: new StubApi(
+            controlCheck: (_, _) =>
+                Task.FromResult((ControlCheckOutcome.NotRegistered, "NOTREGISTERED"))));
+
+        var ticks = new List<ControlCheckTick>();
+        await foreach (var tick in sut.PollRegistrationAsync(
+                           account, "id", maxAttempts: 5, TimeSpan.Zero))
+        {
+            ticks.Add(tick);
+        }
+
+        Assert.Equal(5, ticks.Count);
+        Assert.All(ticks, t => Assert.Equal(ControlCheckOutcome.NotRegistered, t.Outcome));
+    }
+
+    [Fact]
+    public async Task PollRegistration_TerminatesAfter_NotRegistered_Crosses_Threshold()
+    {
+        // The threshold is "++notRegistered > 25" so the 26th NOTREGISTERED
+        // tick is the last one yielded. ≈50s of polling at 2s pollInterval —
+        // matches frmMain.cs:2366 + m_6.Interval=5000, m_8>10.
+        var account = new Account("u1", "k1", "37", "127");
+        var sut = BuildSut(api: new StubApi(
+            controlCheck: (_, _) =>
+                Task.FromResult((ControlCheckOutcome.NotRegistered, "NOTREGISTERED"))));
+
+        var ticks = new List<ControlCheckTick>();
+        await foreach (var tick in sut.PollRegistrationAsync(
+                           account, "id", maxAttempts: 100, TimeSpan.Zero))
+        {
+            ticks.Add(tick);
+        }
+
+        Assert.Equal(26, ticks.Count);
+    }
+
     private static RegistrationRequest SampleRequest() => new(
         AuthCode8Digits:       "12345678",
         HomeSsid:              "HOME_AP",

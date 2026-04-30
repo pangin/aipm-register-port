@@ -20,8 +20,8 @@ public sealed class ControlCheckOutcomeTests
     [Theory]
     [InlineData("{\"status\":\"STATUSERROR\"}",       ControlCheckOutcome.AlreadyRegistered)]
     [InlineData("STATUS ERROR",                       ControlCheckOutcome.AlreadyRegistered)]
-    [InlineData("{\"status\":\"NOTREGISTERED\"}",     ControlCheckOutcome.NotRegisteredExceededAttempts)]
-    [InlineData("NOT REGISTERED",                     ControlCheckOutcome.NotRegisteredExceededAttempts)]
+    [InlineData("{\"status\":\"NOTREGISTERED\"}",     ControlCheckOutcome.NotRegistered)]
+    [InlineData("NOT REGISTERED",                     ControlCheckOutcome.NotRegistered)]
     [InlineData("{\"status\":\"TIMEFAILED\"}",        ControlCheckOutcome.AuthCodeExpired)]
     public void Recognises_String_Status_Markers(string body, ControlCheckOutcome expected)
     {

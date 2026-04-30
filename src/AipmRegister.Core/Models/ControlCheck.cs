@@ -29,7 +29,7 @@ public enum ControlCheckOutcome
     Pending,
     Success,
     AlreadyRegistered,
-    NotRegisteredExceededAttempts,
+    NotRegistered,
     AuthCodeExpired,
     UnknownError,
 }
