@@ -1,63 +1,68 @@
 using AipmRegister.Gui.Localization;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Data;
+using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 
 namespace AipmRegister.Gui.Tests.Localization;
 
 /// Headless-Avalonia regression tests for the <c>{loc:Loc Key}</c>
-/// markup extension. The v1.4.0 → v1.5.1 saga taught us that a clean
-/// `dotnet build` is not enough: the original Binding-from-string
-/// constructor compiled but did not parse the indexer path correctly,
-/// leaving every localized label blank at runtime. These tests run
-/// against a real Avalonia binding pipeline (via Avalonia.Headless),
-/// so a future refactor that re-introduces the regression fails CI.
+/// markup extension. The v1.4.0 → v1.5.1 → v1.7.0 saga taught us that
+/// a clean `dotnet build` is not enough: the original Binding-from-
+/// string constructor compiled fine but did not parse the indexer
+/// path correctly; the property-initializer Binding form parsed
+/// correctly at startup but ignored language-toggle PropertyChanged
+/// notifications. v1.7.1 swaps to a manual reactive subscription —
+/// these tests pin both the parse-time value and the live update
+/// contract directly.
 public sealed class LocExtensionTests : IClassFixture<HeadlessFixture>
 {
     private readonly HeadlessFixture _headless;
     public LocExtensionTests(HeadlessFixture headless) => _headless = headless;
 
     [Fact]
-    public Task ProvideValue_ReturnsBinding_ResolvingToLocalizedString()
+    public Task ProvideValue_ReturnsCurrentLocalizedString()
         => _headless.Run(() =>
         {
-            var ext = new LocExtension("App.Title");
-            var binding = (Binding)ext.ProvideValue(serviceProvider: null!)!;
+            var loc = ((ILocalizationProvider)Application.Current!).Localization!;
+            loc.SetLanguage(AppLanguage.Ko);
 
             var tb = new TextBlock();
-            tb.Bind(TextBlock.TextProperty, binding);
+            var sp = new StubServiceProvider(tb, TextBlock.TextProperty);
+
+            // Mirrors what the XAML loader does: it takes ProvideValue's
+            // return and assigns it to the target.
+            var initial = new LocExtension("App.Title").ProvideValue(sp);
+            tb.SetValue(TextBlock.TextProperty, initial);
 
             Assert.Equal("AIPM Register", tb.Text);
         });
 
     [Fact]
-    public Task ProvideValue_BindingHonorsCurrentLanguage()
+    public Task ProvideValue_LiveUpdatesOnLanguageToggle()
         => _headless.Run(() =>
         {
             var loc = ((ILocalizationProvider)Application.Current!).Localization!;
+            loc.SetLanguage(AppLanguage.Ko);
 
-            // Force a known starting state — the headless fixture is shared
-            // across the test class, so other cases may have toggled it.
-            loc.SetLanguage(AppLanguage.En);
-
-            var ext = new LocExtension("Lang.Toggle");
             var tb = new TextBlock();
-            tb.Bind(TextBlock.TextProperty, (Binding)ext.ProvideValue(null!)!);
+            var sp = new StubServiceProvider(tb, TextBlock.TextProperty);
 
-            // En dictionary's Lang.Toggle is "한국어" (button shows other lang).
+            var initial = new LocExtension("Lang.Toggle").ProvideValue(sp);
+            tb.SetValue(TextBlock.TextProperty, initial);
+            Assert.Equal("EN", tb.Text);
+
+            // Subsequent toggles must propagate to tb.Text via the
+            // manual subscription LocExtension wires up — without going
+            // through Avalonia's binding pipeline (which silently
+            // ignores `Item[]` PropertyChanged on string-indexer paths).
+            loc.Toggle();
+            Dispatcher.UIThread.RunJobs();
             Assert.Equal("한국어", tb.Text);
 
-            loc.SetLanguage(AppLanguage.Ko);
+            loc.Toggle();
             Dispatcher.UIThread.RunJobs();
-
-            // Live-update via PropertyChanged("Item[]") would flip this to
-            // "EN". We don't assert that here — Avalonia's indexer binding
-            // refresh path needs deeper investigation; the
-            // BindingHonorsCurrentLanguage assertion above is enough to
-            // catch the v1.4.0 regression where every {loc:Loc} resolved
-            // to nothing at all. Live toggle remains a known limitation
-            // pinned by issue (TODO).
+            Assert.Equal("EN", tb.Text);
         });
 
     [Fact]
@@ -69,5 +74,22 @@ public sealed class LocExtensionTests : IClassFixture<HeadlessFixture>
         var ext = new LocExtension("App.Title");
         var result = ext.ProvideValue(serviceProvider: null!);
         Assert.Equal("!App.Title!", result);
+    }
+
+    /// Minimal IServiceProvider that hands back an IProvideValueTarget
+    /// pointing at the requested AvaloniaObject + AvaloniaProperty —
+    /// just what <see cref="LocExtension.ProvideValue"/> needs to wire
+    /// the manual subscription.
+    private sealed class StubServiceProvider : IServiceProvider, IProvideValueTarget
+    {
+        public StubServiceProvider(object target, object property)
+        {
+            TargetObject = target;
+            TargetProperty = property;
+        }
+        public object TargetObject { get; }
+        public object TargetProperty { get; }
+        public object? GetService(Type serviceType)
+            => serviceType == typeof(IProvideValueTarget) ? this : null;
     }
 }

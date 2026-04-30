@@ -1,23 +1,32 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.ComponentModel;
 using Avalonia;
-using Avalonia.Data;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 
 namespace AipmRegister.Gui.Localization;
 
-/// XAML markup extension: <code>{loc:Loc App.Title}</code> resolves to the
-/// localized value for the given key, with live update on language toggle.
+/// XAML markup extension: <code>{loc:Loc App.Title}</code> resolves to
+/// the localized value for the given key, with live update on language
+/// toggle.
 ///
-/// Internally produces a <see cref="Binding"/> rooted at the
-/// app-level <see cref="ILocalization"/> instance — so the
-/// <c>"Item[]"</c> PropertyChanged plumbing in <c>Localization</c>
-/// continues to refresh every binding when the language flips.
+/// Implementation note — manual reactive subscription, not a Binding.
+/// Avalonia's <see cref="Avalonia.Data.Binding"/> with a string indexer
+/// path (<c>"[Key]"</c>) does not respond to
+/// <c>INotifyPropertyChanged("Item[]")</c> the way WPF's Binding does:
+/// the BindingExpression subscribes to property-name notifications but
+/// the indexer access doesn't refresh on the WPF-style "all-indexers"
+/// signal. We saw that empirically — Title resolved correctly at parse
+/// time but stayed put across <c>L.Toggle()</c>.
 ///
-/// In designer mode (or any time the app's DI host hasn't built yet) the
-/// extension returns a literal <c>"!{Key}!"</c> placeholder, matching the
-/// runtime missing-key convention so the designer UI stays usable
-/// without throwing.
+/// The fix: we hook the target's set-value path manually. ProvideValue
+/// pushes the initial value, then subscribes to the localization
+/// service's PropertyChanged event with a weak reference to the target
+/// so a closed window doesn't leak through the singleton.
+///
+/// Bonus: this approach is AOT-friendly without reflection — the
+/// indexer call is resolved at compile time, so PublishAot trimming
+/// can statically prove the indexer is reachable.
 public sealed class LocExtension : MarkupExtension
 {
     public LocExtension() { }
@@ -25,32 +34,44 @@ public sealed class LocExtension : MarkupExtension
 
     public string Key { get; set; } = string.Empty;
 
-    // Avalonia's Binding(string) ctor flags IL2026/IL3050 because string-
-    // path bindings normally use reflection. Our path is the trivial
-    // indexer "[Key]" rooted at ILocalization, which has exactly one
-    // indexer (string-keyed). Trimming preserves it because Localization
-    // is reachable through DI; AOT inlines the indexer call. Suppress
-    // both with that justification.
-    [UnconditionalSuppressMessage("Trimming", "IL2026:Members which require dynamic access cannot be statically analyzed.",
-        Justification = "Bind path is a single string-indexer on ILocalization which is preserved via DI registration.")]
-    [UnconditionalSuppressMessage("AOT", "IL3050:Avoid calling members with RequiresDynamicCodeAttribute.",
-        Justification = "Bind path is a single string-indexer on ILocalization which is preserved via DI registration.")]
     public override object ProvideValue(IServiceProvider serviceProvider)
     {
         var loc = (Application.Current as ILocalizationProvider)?.Localization;
         if (loc is null) return $"!{Key}!";
 
-        // Wrap the indexer access in a ReflectionBindingExtension /
-        // CompiledBinding-equivalent: we set up the Binding via property
-        // initializers (not the string-path constructor) so the
-        // path-parser visits the indexer node directly, which is what the
-        // original `{Binding [Key], Source=L.Instance}` did pre-refactor.
-        var binding = new Binding
+        // Wire a live-update subscription for the next toggle when we
+        // can identify the target (an AvaloniaObject + AvaloniaProperty
+        // pair, which is exactly what every {loc:Loc Key} site provides).
+        // The XAML loader assigns *this method's return value* to the
+        // target at parse time, so we don't push the initial value
+        // ourselves — we only handle subsequent language flips.
+        var pvt = serviceProvider?.GetService(typeof(IProvideValueTarget)) as IProvideValueTarget;
+        if (pvt?.TargetObject is AvaloniaObject ao && pvt.TargetProperty is AvaloniaProperty ap)
         {
-            Source = loc,
-            Path   = $"[{Key}]",
-            Mode   = BindingMode.OneWay,
-        };
-        return binding;
+            var weak = new WeakReference<AvaloniaObject>(ao);
+            var key = Key;
+            var prop = ap;
+            PropertyChangedEventHandler? handler = null;
+            handler = (_, _) =>
+            {
+                if (!weak.TryGetTarget(out var target))
+                {
+                    loc.PropertyChanged -= handler!;
+                    return;
+                }
+                if (Dispatcher.UIThread.CheckAccess())
+                {
+                    target.SetValue(prop, loc[key]);
+                }
+                else
+                {
+                    Dispatcher.UIThread.Post(() => target.SetValue(prop, loc[key]));
+                }
+            };
+            loc.PropertyChanged += handler;
+        }
+
+        // Initial value — XAML loader assigns it to the target.
+        return loc[Key];
     }
 }
