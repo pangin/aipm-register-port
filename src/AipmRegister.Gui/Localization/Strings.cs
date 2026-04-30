@@ -64,6 +64,7 @@ internal static class Strings
         ["Step5.InProgress"]               = "등록 중...",
         ["Step5.PrevButton"]               = "이전 (제품 선택)",
         ["Step5.UnbindButton"]             = "계정 연동 해제",
+        ["Step5.ShowDetailsButton"]        = "자세히 보기",
 
         // Errors / confirmations
         ["Error.AlreadyRegistered"]        = "이미 등록된 장치입니다.",
@@ -157,6 +158,7 @@ internal static class Strings
         ["Step5.InProgress"]               = "Registering...",
         ["Step5.PrevButton"]               = "Back (Product)",
         ["Step5.UnbindButton"]             = "Unbind account",
+        ["Step5.ShowDetailsButton"]        = "Show details",
 
         // Errors / confirmations
         ["Error.AlreadyRegistered"]        = "Device is already registered to another account.",

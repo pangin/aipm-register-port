@@ -1,8 +1,10 @@
+using System.Collections.ObjectModel;
 using AipmRegister.Core.Models;
 using AipmRegister.Core.Notification;
 using AipmRegister.Core.Orchestration;
 using AipmRegister.Core.Wifi;
 using AipmRegister.Gui.Localization;
+using AipmRegister.Gui.Notification;
 using AipmRegister.Gui.Wizard;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -13,6 +15,7 @@ public partial class RegisteringViewModel : ObservableObject
 {
     private readonly IRegistrationOrchestrator _orchestrator;
     private readonly IUserNotifier _notifier;
+    private readonly UiNotifier _ui;
     private readonly IWizardNavigator _nav;
     private readonly WizardState _state;
     private readonly ILocalization _l;
@@ -20,22 +23,32 @@ public partial class RegisteringViewModel : ObservableObject
     public RegisteringViewModel(
         IRegistrationOrchestrator orchestrator,
         IUserNotifier notifier,
+        UiNotifier ui,
         IWizardNavigator nav,
         WizardState state,
         ILocalization l)
     {
         _orchestrator = orchestrator;
         _notifier = notifier;
+        _ui = ui;
         _nav = nav;
         _state = state;
         _l = l;
     }
+
+    /// Live feed of orchestrator/notifier events for the "자세히 보기"
+    /// terminal-style panel on the Step 5/5 view.
+    public ObservableCollection<LogEntry> LogEntries => _ui.Entries;
 
     [ObservableProperty] private int    progressValue;
     [ObservableProperty] private int    progressMaximum = 20;
     [ObservableProperty] private string statusText = string.Empty;
     [ObservableProperty] private bool   succeeded;
     [ObservableProperty] private bool   isBusy;
+    [ObservableProperty] private bool   isLogVisible;
+
+    [RelayCommand]
+    private void ToggleLog() => IsLogVisible = !IsLogVisible;
 
     private CancellationTokenSource? _cts;
 
