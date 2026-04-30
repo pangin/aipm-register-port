@@ -1,3 +1,4 @@
+using System.Net.NetworkInformation;
 using System.Runtime.Versioning;
 using AipmRegister.Core.Wifi;
 using ManagedNativeWifi;
@@ -9,7 +10,7 @@ namespace AipmRegister.Wifi.Windows;
 /// (which wraps wlanapi.dll). Replaces the inline P/Invoke calls scattered
 /// through frmMain (lines 1140-1260, 1761) of the original.
 [SupportedOSPlatform("windows")]
-public sealed class WindowsWifiAdapter : IWifiAdapter
+public sealed class WindowsWifiAdapter : IWifiAdapter, IWifiGatewayProvider
 {
     private readonly ILogger<WindowsWifiAdapter> _logger;
     private readonly Guid _interfaceId;
@@ -20,6 +21,47 @@ public sealed class WindowsWifiAdapter : IWifiAdapter
         _logger = logger;
         _interfaceId = Guid.Parse(iface.Id);
         _logger.LogInformation("Using Wi-Fi interface: {Iface}", iface.DisplayName);
+    }
+
+    public async Task<string?> GetGatewayAsync(TimeSpan timeout, CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        Exception? lastError = null;
+        // NetworkInterface.Id is the GUID stringified with curly braces and
+        // upper-case hex (Windows registry adapter id convention). NativeWifi
+        // hands us a Guid struct, so format both ends to "{B}" upper.
+        var targetId = _interfaceId.ToString("B").ToUpperInvariant();
+
+        while (DateTime.UtcNow < deadline)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var nic = NetworkInterface
+                    .GetAllNetworkInterfaces()
+                    .FirstOrDefault(n => string.Equals(n.Id, targetId, StringComparison.OrdinalIgnoreCase));
+
+                if (nic is not null && nic.OperationalStatus == OperationalStatus.Up)
+                {
+                    var gateway = nic.GetIPProperties().GatewayAddresses
+                        .Select(g => g.Address?.ToString())
+                        .FirstOrDefault(addr => !string.IsNullOrWhiteSpace(addr));
+                    if (!string.IsNullOrWhiteSpace(gateway)) return gateway;
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                lastError = ex;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+        }
+
+        if (lastError is not null)
+        {
+            _logger.LogWarning(lastError, "Could not read gateway for Wi-Fi interface {Iface}.", _interfaceId);
+        }
+        return null;
     }
 
     public Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken ct = default)

@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using AipmRegister.Core.Process;
 using AipmRegister.Core.Wifi;
 using Microsoft.Extensions.Logging;
 
@@ -9,16 +10,57 @@ namespace AipmRegister.Wifi.Linux;
 /// supplicant (most consumer distros, including those running NetworkManager,
 /// since NM ships its own wpa_supplicant under the hood).
 [SupportedOSPlatform("linux")]
-public sealed class LinuxWifiAdapter : IWifiAdapter
+public sealed class LinuxWifiAdapter : IWifiAdapter, IWifiGatewayProvider
 {
+    private readonly IProcessRunner _processRunner;
     private readonly ILogger<LinuxWifiAdapter> _logger;
     private readonly string _interfaceName;
 
-    public LinuxWifiAdapter(WifiInterface iface, ILogger<LinuxWifiAdapter> logger)
+    public LinuxWifiAdapter(WifiInterface iface, IProcessRunner processRunner, ILogger<LinuxWifiAdapter> logger)
     {
+        _processRunner = processRunner;
         _logger = logger;
         _interfaceName = iface.Id;
         _logger.LogInformation("Using wireless interface: {Iface}", _interfaceName);
+    }
+
+    public async Task<string?> GetGatewayAsync(TimeSpan timeout, CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        Exception? lastError = null;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var result = await _processRunner.RunAsync(
+                    "ip",
+                    new[] { "route", "show", "default", "dev", _interfaceName },
+                    ct);
+                if (result.ExitCode == 0)
+                {
+                    var gateway = LinuxIpRouteParser.ParseDefaultGateway(result.Stdout);
+                    if (!string.IsNullOrWhiteSpace(gateway)) return gateway;
+                }
+                else
+                {
+                    lastError = new InvalidOperationException(result.Stderr.Trim());
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                lastError = ex;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+        }
+
+        if (lastError is not null)
+        {
+            _logger.LogWarning(lastError, "Could not read gateway for Wi-Fi interface {Iface}.", _interfaceName);
+        }
+        return null;
     }
 
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken ct = default)
