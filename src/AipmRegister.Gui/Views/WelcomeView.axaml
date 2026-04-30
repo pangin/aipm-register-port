@@ -5,10 +5,9 @@
              x:Class="AipmRegister.Gui.Views.WelcomeView"
              x:DataType="vm:WelcomeViewModel">
   <StackPanel Spacing="16" HorizontalAlignment="Center" VerticalAlignment="Center">
-    <TextBlock FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"
-               Text="AI POWER MANAGER" Foreground="#3FA9F5" />
-    <TextBlock FontSize="13" Opacity="0.85" HorizontalAlignment="Center"
-               Text="Energy Saving Platform" />
+    <!-- Original wordmark recovered from frmMain's picLogo.BackgroundImage. -->
+    <Image Source="/Assets/logo.png" Stretch="Uniform"
+           Width="320" HorizontalAlignment="Center" />
     <TextBlock FontSize="13" TextWrapping="Wrap"
                TextAlignment="Center" MaxWidth="500"
                Text="{loc:Loc Welcome.Body}" />

@@ -27,8 +27,15 @@
 
     <Border Grid.Row="3" BorderBrush="#444" BorderThickness="1" CornerRadius="3" Padding="14"
             Margin="0,8" VerticalAlignment="Center">
-      <TextBlock TextAlignment="Center" TextWrapping="Wrap" FontSize="12" Opacity="0.9"
-                 Text="{loc:Loc Step2.ConfirmHint}" />
+      <StackPanel Spacing="10" HorizontalAlignment="Center">
+        <!-- Mobile-app screenshot recovered from frmMain's picPcKey.BackgroundImage:
+             the original Dawon "발급 키" issuance flow the user has to follow on
+             their phone before pasting the 8-digit code into the field above. -->
+        <Image Source="/Assets/pc-key-hint.png" Stretch="Uniform"
+               Width="360" HorizontalAlignment="Center" />
+        <TextBlock TextAlignment="Center" TextWrapping="Wrap" FontSize="12" Opacity="0.9"
+                   Text="{loc:Loc Step2.ConfirmHint}" />
+      </StackPanel>
     </Border>
 
     <Button Grid.Row="4" HorizontalAlignment="Center" Padding="20,6"
