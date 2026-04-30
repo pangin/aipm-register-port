@@ -51,6 +51,17 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # Strip the leading "v" from the tag so we can feed a clean SemVer
+      # to dotnet publish (-p:Version=...), use it in artifact filenames,
+      # and write it into the macOS Info.plist's CFBundleShortVersionString.
+      - name: derive version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building version $VERSION from tag $GITHUB_REF_NAME"
+
       - name: configure macOS signing certificate
         if: matrix.is_mac == true
         shell: bash
@@ -108,9 +119,10 @@ jobs:
             --self-contained true \
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:Version=${{ steps.version.outputs.version }} \
             -o out/cli
           mv "out/cli/AipmRegister.Cli${{ matrix.ext }}" \
-             "out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}"
+             "out/cli/aipm-register-cli-${{ steps.version.outputs.version }}-${{ matrix.suffix }}${{ matrix.ext }}"
           ls -la out/cli
 
       # ---------- CLI (Native AOT) ----------
@@ -124,9 +136,10 @@ jobs:
             -p:PublishAot=true \
             -p:InvariantGlobalization=true \
             -p:IlcOptimizationPreference=Size \
+            -p:Version=${{ steps.version.outputs.version }} \
             -o out/cli-aot
           mv "out/cli-aot/AipmRegister.Cli${{ matrix.ext }}" \
-             "out/cli-aot/aipm-register-cli-aot-${{ matrix.suffix }}${{ matrix.ext }}"
+             "out/cli-aot/aipm-register-cli-aot-${{ steps.version.outputs.version }}-${{ matrix.suffix }}${{ matrix.ext }}"
           ls -la out/cli-aot
 
       # ---------- GUI ----------
@@ -139,6 +152,7 @@ jobs:
             --self-contained true \
             -p:PublishSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:Version=${{ steps.version.outputs.version }} \
             -o out/gui
           ls -la out/gui
 
@@ -147,7 +161,7 @@ jobs:
         shell: bash
         run: |
           mv "out/gui/AipmRegister.Gui${{ matrix.ext }}" \
-             "out/gui/aipm-register-gui-${{ matrix.suffix }}${{ matrix.ext }}"
+             "out/gui/aipm-register-gui-${{ steps.version.outputs.version }}-${{ matrix.suffix }}${{ matrix.ext }}"
 
       # ---------- GUI (Native AOT, non-macOS only) ----------
       # macOS GUI AOT is feasible but requires a parallel .app-bundle +
@@ -164,9 +178,10 @@ jobs:
             -p:PublishAot=true \
             -p:InvariantGlobalization=true \
             -p:IlcOptimizationPreference=Size \
+            -p:Version=${{ steps.version.outputs.version }} \
             -o out/gui-aot
           mv "out/gui-aot/AipmRegister.Gui${{ matrix.ext }}" \
-             "out/gui-aot/aipm-register-gui-aot-${{ matrix.suffix }}${{ matrix.ext }}"
+             "out/gui-aot/aipm-register-gui-aot-${{ steps.version.outputs.version }}-${{ matrix.suffix }}${{ matrix.ext }}"
           ls -la out/gui-aot
 
       - name: bundle GUI as .app (macOS)
@@ -176,6 +191,7 @@ jobs:
           MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
           MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
           MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           BUNDLE="out/gui/AipmRegister.app"
           mkdir -p "$BUNDLE/Contents/MacOS"
@@ -186,8 +202,9 @@ jobs:
           cp -R out/gui/AipmRegister.Gui "$BUNDLE/Contents/MacOS/AipmRegister"
           chmod +x "$BUNDLE/Contents/MacOS/AipmRegister"
 
-          # Minimal Info.plist (no icon yet — can be added later).
-          cat > "$BUNDLE/Contents/Info.plist" << 'PLIST'
+          # Minimal Info.plist. Version strings come from the git tag so
+          # macOS Finder / About panes match the release artifact name.
+          cat > "$BUNDLE/Contents/Info.plist" << PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -198,8 +215,8 @@ jobs:
             <key>CFBundleInfoDictionaryVersion</key>  <string>6.0</string>
             <key>CFBundleName</key>                   <string>aipm-register</string>
             <key>CFBundlePackageType</key>            <string>APPL</string>
-            <key>CFBundleShortVersionString</key>     <string>1.0</string>
-            <key>CFBundleVersion</key>                <string>1</string>
+            <key>CFBundleShortVersionString</key>     <string>${VERSION}</string>
+            <key>CFBundleVersion</key>                <string>${VERSION}</string>
             <key>NSHighResolutionCapable</key>        <true/>
             <key>LSMinimumSystemVersion</key>         <string>11.0</string>
             <key>NSLocationUsageDescription</key>     <string>SSID 스캔 결과를 보여주려면 위치 권한이 필요합니다 (실제 위치는 사용하지 않습니다).</string>
@@ -244,7 +261,7 @@ jobs:
 
           if [ "${MACOS_SIGNING_CONFIGURED:-false}" = "true" ] &&
              [ "$NOTARY_SECRET_COUNT" -eq 3 ]; then
-            NOTARY_ZIP="out/gui/aipm-register-gui-${{ matrix.suffix }}-notary.zip"
+            NOTARY_ZIP="out/gui/aipm-register-gui-${{ steps.version.outputs.version }}-${{ matrix.suffix }}-notary.zip"
             ditto -c -k --sequesterRsrc --keepParent "$BUNDLE" "$NOTARY_ZIP"
             xcrun notarytool submit "$NOTARY_ZIP" \
               --apple-id "$MACOS_NOTARY_APPLE_ID" \
@@ -259,7 +276,7 @@ jobs:
           # treats directories as files only via tarballs/zips).
           ditto -c -k --sequesterRsrc --keepParent \
             "$BUNDLE" \
-            "out/gui/aipm-register-gui-${{ matrix.suffix }}.app.zip"
+            "out/gui/aipm-register-gui-${{ steps.version.outputs.version }}-${{ matrix.suffix }}.app.zip"
           ls -la out/gui
 
       # ---------- Upload ----------
@@ -270,16 +287,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}
-            out/cli-aot/aipm-register-cli-aot-${{ matrix.suffix }}${{ matrix.ext }}
-            out/gui/aipm-register-gui-${{ matrix.suffix }}${{ matrix.ext }}
-            out/gui-aot/aipm-register-gui-aot-${{ matrix.suffix }}${{ matrix.ext }}
+            out/cli/aipm-register-cli-${{ steps.version.outputs.version }}-${{ matrix.suffix }}${{ matrix.ext }}
+            out/cli-aot/aipm-register-cli-aot-${{ steps.version.outputs.version }}-${{ matrix.suffix }}${{ matrix.ext }}
+            out/gui/aipm-register-gui-${{ steps.version.outputs.version }}-${{ matrix.suffix }}${{ matrix.ext }}
+            out/gui-aot/aipm-register-gui-aot-${{ steps.version.outputs.version }}-${{ matrix.suffix }}${{ matrix.ext }}
 
       - name: upload (CLI + AOT + macOS .app.zip)
         if: matrix.is_mac == true
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            out/cli/aipm-register-cli-${{ matrix.suffix }}
-            out/cli-aot/aipm-register-cli-aot-${{ matrix.suffix }}
-            out/gui/aipm-register-gui-${{ matrix.suffix }}.app.zip
+            out/cli/aipm-register-cli-${{ steps.version.outputs.version }}-${{ matrix.suffix }}
+            out/cli-aot/aipm-register-cli-aot-${{ steps.version.outputs.version }}-${{ matrix.suffix }}
+            out/gui/aipm-register-gui-${{ steps.version.outputs.version }}-${{ matrix.suffix }}.app.zip
