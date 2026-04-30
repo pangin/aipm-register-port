@@ -126,29 +126,35 @@ original (icons rendered as `StreamGeometry` paths, no PNGs).
 ## Try it
 
 ### Pre-built binaries
-Download the latest [Release](https://github.com/pangin/aipm-register-port/releases) — **18 artifacts** (3 form factors × 6 RIDs):
+Download the latest [Release](https://github.com/pangin/aipm-register-port/releases) — **22 artifacts** (4 form factors × 6 RIDs, with AOT GUI shipped on the four non-macOS RIDs):
 
 | Form factor | win-x64 | win-arm64 | linux-x64 | linux-arm64 | osx-arm64 | osx-x64 |
 |---|---|---|---|---|---|---|
 | **CLI self-contained** | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ Mach-O | ✅ Mach-O |
 | **CLI Native AOT** ⚡   | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ Mach-O | — (cross-build) |
-| **GUI** (Avalonia)     | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ `.app.zip` | ✅ `.app.zip` |
+| **GUI self-contained** | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | ✅ `.app.zip` | ✅ `.app.zip` |
+| **GUI Native AOT** ⚡   | ✅ `.exe` | ✅ `.exe` | ✅ ELF | ✅ ELF | — (build only) | — (cross-build) |
 
 Naming pattern:
 
 ```
-aipm-register-{cli,cli-aot,gui}-{windows-x64.exe,
-                                  windows-arm64.exe,
-                                  linux-x64,
-                                  linux-arm64,
-                                  macos-arm64[.app.zip],
-                                  macos-x64[.app.zip]}
+aipm-register-{cli,cli-aot,gui,gui-aot}-{windows-x64.exe,
+                                          windows-arm64.exe,
+                                          linux-x64,
+                                          linux-arm64,
+                                          macos-arm64[.app.zip],
+                                          macos-x64[.app.zip]}
 ```
 
 Native AOT CLI builds are **~12 MB** with ~20 ms cold start (vs the
-~70 MB / ~300 ms self-contained variant). Each RID is built on a
-native runner — no cross-compile gymnastics, link toolchain matches
-the target.
+~70 MB / ~300 ms self-contained variant). The GUI AOT bundle on
+Windows is **~53 MB** total (vs ~95 MB self-contained, ~44 % smaller)
+with the same `~50 ms` cold start as the CLI AOT. Each RID is built
+on a native runner — no cross-compile gymnastics, link toolchain
+matches the target. macOS GUI AOT is technically supported by the
+Avalonia + .NET stack but skipped from the release matrix until the
+`.app` bundling + codesign + notarize steps are parameterised for
+two parallel bundles per macOS job.
 
 ### From source — step-by-step
 

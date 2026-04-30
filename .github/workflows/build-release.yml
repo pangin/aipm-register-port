@@ -149,6 +149,26 @@ jobs:
           mv "out/gui/AipmRegister.Gui${{ matrix.ext }}" \
              "out/gui/aipm-register-gui-${{ matrix.suffix }}${{ matrix.ext }}"
 
+      # ---------- GUI (Native AOT, non-macOS only) ----------
+      # macOS GUI AOT is feasible but requires a parallel .app-bundle +
+      # codesign + notarize pass that doubles the macOS job runtime;
+      # ship AOT GUI for Windows + Linux for now and revisit macOS once
+      # the .app-bundle script is parameterised.
+      - name: publish GUI (Native AOT)
+        if: matrix.is_mac == false && matrix.skip_aot != true
+        shell: bash
+        run: |
+          dotnet publish src/AipmRegister.Gui \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            -p:PublishAot=true \
+            -p:InvariantGlobalization=true \
+            -p:IlcOptimizationPreference=Size \
+            -o out/gui-aot
+          mv "out/gui-aot/AipmRegister.Gui${{ matrix.ext }}" \
+             "out/gui-aot/aipm-register-gui-aot-${{ matrix.suffix }}${{ matrix.ext }}"
+          ls -la out/gui-aot
+
       - name: bundle GUI as .app (macOS)
         if: matrix.is_mac == true
         shell: bash
@@ -253,6 +273,7 @@ jobs:
             out/cli/aipm-register-cli-${{ matrix.suffix }}${{ matrix.ext }}
             out/cli-aot/aipm-register-cli-aot-${{ matrix.suffix }}${{ matrix.ext }}
             out/gui/aipm-register-gui-${{ matrix.suffix }}${{ matrix.ext }}
+            out/gui-aot/aipm-register-gui-aot-${{ matrix.suffix }}${{ matrix.ext }}
 
       - name: upload (CLI + AOT + macOS .app.zip)
         if: matrix.is_mac == true
