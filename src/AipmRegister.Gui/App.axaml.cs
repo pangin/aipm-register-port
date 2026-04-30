@@ -1,6 +1,7 @@
 using AipmRegister.Core.Api;
 using AipmRegister.Core.Devices;
 using AipmRegister.Core.Models;
+using AipmRegister.Core.Network;
 using AipmRegister.Core.Notification;
 using AipmRegister.Core.Orchestration;
 using AipmRegister.Core.Wifi;
@@ -46,6 +47,7 @@ public partial class App : Application
         builder.Services.AddSingleton(new BackendOptions());
         builder.Services.AddHttpClient<IRegisterApiClient, RegisterApiClient>();
         builder.Services.AddSingleton<IDeviceTcpSender, DeviceTcpSender>();
+        builder.Services.AddSingleton<IInternetReachabilityProbe, TcpInternetReachabilityProbe>();
         builder.Services.AddSingleton<UiNotifier>();
         builder.Services.AddSingleton<IUserNotifier>(sp => sp.GetRequiredService<UiNotifier>());
 

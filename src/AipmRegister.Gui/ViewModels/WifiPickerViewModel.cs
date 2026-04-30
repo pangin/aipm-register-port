@@ -67,6 +67,7 @@ public partial class WifiPickerViewModel : ObservableObject
         if (value is not null)
         {
             _state.HomeSsid = value.Ssid;
+            _state.HomeSecurity = value.Security;
         }
     }
 
@@ -130,7 +131,7 @@ public partial class WifiPickerViewModel : ObservableObject
         {
             await _state.WifiAdapter.ConnectAsync(
                 _state.HomeSsid, _state.HomePassword,
-                Selected?.Security ?? WifiSecurity.Wpa2Personal);
+                _state.HomeSecurity);
             _nav.Go(WizardStep.AuthCode);
         }
         catch (Exception ex)

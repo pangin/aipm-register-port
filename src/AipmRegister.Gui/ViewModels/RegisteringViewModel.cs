@@ -116,7 +116,8 @@ public partial class RegisteringViewModel : ObservableObject
         DeviceTcpHost:          _state.DeviceTcpHost,
         DeviceTcpPort:          _state.DeviceTcpPort,
         MaxControlCheckAttempts:ProgressMaximum,
-        PollInterval:           TimeSpan.FromSeconds(2));
+        PollInterval:           TimeSpan.FromSeconds(2),
+        HomeSecurity:           _state.HomeSecurity);
 
     [RelayCommand]
     private void Back()

@@ -36,4 +36,23 @@ public sealed class HotspotSsidParserTests
         Assert.Equal("UNKNOWN", picked.PrimaryPrefix);
         Assert.Equal("UNKNOWN", picked.ModelCode);
     }
+
+    [Theory]
+    [InlineData("S120",  "DWD-S120_AABBCC",  "B530_W")]
+    [InlineData("S120",  "DWD-LS120_AABBCC", "B540_W")]
+    [InlineData("ES120", "DWD-ES120_AABBCC", "B550E_W")]
+    [InlineData("ES120", "DWD-SS120_AABBCC", "B550_W")]
+    [InlineData("S310",  "DWD-S311_AABBCC",  "P110_WA")]
+    [InlineData("S510",  "DWD-S510_AABBCC",  "R110_W")]
+    [InlineData("S501",  "DWD-S510_AABBCC",  "R200_W")]
+    [InlineData("S600",  "DWD-S600_AABBCC",  "B400_SW")]
+    [InlineData("S110",  "DWD-S600_AABBCC",  "B400_W")]
+    public void ResolveModelCode_Mirrors_Legacy_Product_And_Ssid_Mapping(
+        string pickedTag,
+        string hotspotSsid,
+        string expected)
+    {
+        var picked = ProductCatalog.All.Single(p => p.Tag == pickedTag);
+        Assert.Equal(expected, ProductCatalog.ResolveModelCode(hotspotSsid, picked));
+    }
 }

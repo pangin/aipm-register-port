@@ -3,7 +3,9 @@ using System.Text.Json.Serialization;
 namespace AipmRegister.Core.Models;
 
 public sealed record ControlCheckRequest(
+    [property: JsonPropertyName("account")]
     ControlCheckAccount Account,
+    [property: JsonPropertyName("devices")]
     IReadOnlyList<ControlCheckDevice> Devices);
 
 public sealed record ControlCheckAccount(
@@ -12,6 +14,7 @@ public sealed record ControlCheckAccount(
 
 public sealed record ControlCheckDevice(
     [property: JsonPropertyName("device_id")] string DeviceId,
+    [property: JsonPropertyName("msg")]
     ControlCheckMessage Msg);
 
 public sealed record ControlCheckMessage(

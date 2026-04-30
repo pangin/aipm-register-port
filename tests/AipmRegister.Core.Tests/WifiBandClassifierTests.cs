@@ -19,8 +19,11 @@ public sealed class WifiBandClassifierTests
 
     [Theory]
     [InlineData("6 (2.4 GHz, 20 MHz)", "2.4G")]
+    [InlineData("6 (2GHz, 20MHz)",     "2.4G")]
     [InlineData("36 (5 GHz, 80 MHz)",  "5G")]
+    [InlineData("161 (5GHz, 80MHz)",   "5G")]
     [InlineData("5 (6 GHz, 80 MHz)",   "6G")]
+    [InlineData("5 (6GHz, 160MHz)",    "6G")]
     [InlineData("48",                  "5G")]
     [InlineData("11",                  "2.4G")]
     [InlineData("",                    "?")]

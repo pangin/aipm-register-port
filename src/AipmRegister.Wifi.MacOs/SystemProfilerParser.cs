@@ -13,62 +13,83 @@ namespace AipmRegister.Wifi.MacOs;
 /// macOS test project can pin behavior on any host (including Windows CI).
 public static class SystemProfilerParser
 {
-    public static IReadOnlyList<WifiNetwork> Parse(string plistXml)
+    public static IReadOnlyList<WifiNetwork> Parse(string plistXml, string? interfaceName = null)
     {
         var doc = XDocument.Parse(plistXml);
-        var root = doc.Root?.Element("array");
-        if (root is null) return Array.Empty<WifiNetwork>();
 
         var results = new List<WifiNetwork>();
-        // The top-level array contains one dict (with key "_items" → array → interfaces)
-        foreach (var topDict in root.Elements("dict"))
+        var seen = new HashSet<(string Ssid, string Band, WifiSecurity Security)>();
+
+        foreach (var iface in CandidateInterfaceDictionaries(doc, interfaceName))
         {
-            var topItems = NextArrayAfterKey(topDict, "_items");
-            if (topItems is null) continue;
+            var current = NextDictAfterKey(iface, "spairport_current_network_information");
+            if (current is not null) AddNetwork(current);
 
-            foreach (var iface in topItems.Elements("dict"))
+            var localList = NextArrayAfterKey(iface, "spairport_airport_other_local_wireless_networks");
+            if (localList is null) continue;
+
+            foreach (var net in localList.Elements("dict"))
             {
-                // Each interface dict has spairport_airport_other_local_wireless_networks
-                var localList = NextArrayAfterKey(iface, "spairport_airport_other_local_wireless_networks");
-                if (localList is null) continue;
-
-                foreach (var net in localList.Elements("dict"))
-                {
-                    var ssid       = StringAfterKey(net, "_name");
-                    var channel    = StringAfterKey(net, "spairport_network_channel");
-                    var security   = StringAfterKey(net, "spairport_security_mode");
-                    var signalNoise = StringAfterKey(net, "spairport_signal_noise");
-
-                    if (string.IsNullOrWhiteSpace(ssid)) continue;
-
-                    results.Add(new WifiNetwork(
-                        Ssid:          ssid!,
-                        SignalQuality: SignalNoiseToQuality(signalNoise),
-                        Security:      MapSecurity(security),
-                        Band:          WifiBandClassifier.FromChannel(channel)));
-                }
+                AddNetwork(net);
             }
         }
         return results;
+
+        void AddNetwork(XElement net)
+        {
+            var ssid        = StringAfterKey(net, "_name");
+            var channel     = StringAfterKey(net, "spairport_network_channel");
+            var security    = MapSecurity(StringAfterKey(net, "spairport_security_mode"));
+            var band        = WifiBandClassifier.FromChannel(channel);
+            var signalNoise = StringAfterKey(net, "spairport_signal_noise");
+
+            if (string.IsNullOrWhiteSpace(ssid)) return;
+            if (!seen.Add((ssid!, band, security))) return;
+
+            results.Add(new WifiNetwork(
+                Ssid:          ssid!,
+                SignalQuality: SignalNoiseToQuality(signalNoise),
+                Security:      security,
+                Band:          band));
+        }
+    }
+
+    private static IEnumerable<XElement> CandidateInterfaceDictionaries(XDocument doc, string? interfaceName)
+    {
+        foreach (var dict in doc.Descendants("dict"))
+        {
+            if (NextArrayAfterKey(dict, "spairport_airport_other_local_wireless_networks") is null
+                && NextDictAfterKey(dict, "spairport_current_network_information") is null)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(interfaceName)
+                && !string.Equals(StringAfterKey(dict, "_name"), interfaceName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            yield return dict;
+        }
     }
 
     private static XElement? NextArrayAfterKey(XElement parent, string keyName)
     {
-        XElement? prevKey = null;
-        foreach (var el in parent.Elements())
-        {
-            if (el.Name.LocalName == "key" && el.Value == keyName)
-            {
-                prevKey = el;
-                continue;
-            }
-            if (prevKey is not null && el.Name.LocalName == "array") return el;
-            prevKey = null;
-        }
-        return null;
+        var el = NextElementAfterKey(parent, keyName);
+        return el?.Name.LocalName == "array" ? el : null;
+    }
+
+    private static XElement? NextDictAfterKey(XElement parent, string keyName)
+    {
+        var el = NextElementAfterKey(parent, keyName);
+        return el?.Name.LocalName == "dict" ? el : null;
     }
 
     private static string? StringAfterKey(XElement parent, string keyName)
+        => NextElementAfterKey(parent, keyName)?.Value;
+
+    private static XElement? NextElementAfterKey(XElement parent, string keyName)
     {
         XElement? prevKey = null;
         foreach (var el in parent.Elements())
@@ -78,7 +99,7 @@ public static class SystemProfilerParser
                 prevKey = el;
                 continue;
             }
-            if (prevKey is not null) return el.Value;
+            if (prevKey is not null) return el;
             prevKey = null;
         }
         return null;

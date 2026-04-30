@@ -156,8 +156,9 @@ the target.
 ```bash
 git clone https://github.com/pangin/aipm-register-port.git
 cd aipm-register-port
-dotnet test                                          # 49 cases across 3 test projects
-dotnet run --project src/AipmRegister.Cli -- --help  # CLI dry-run
+dotnet test
+dotnet run --project src/AipmRegister.Cli            # interactive CLI verifier
+dotnet run --project src/AipmRegister.Cli -- --help
 dotnet run --project src/AipmRegister.Gui            # GUI
 ```
 
@@ -278,10 +279,19 @@ The first scan asks for Location permission (macOS 14+ needs it for SSID
 visibility). Approve once and the rest of the flow runs without prompts.
 
 ### CLI usage
+Interactive mode mirrors the GUI wizard and prints the derived
+`mac`/`model`/`device_id` plus every `control/check` raw response:
+
+```
+aipm-register-cli --interactive --verbose
+```
+
+Supplying all required values keeps the non-interactive automation flow:
+
 ```
 aipm-register-cli \
   --auth-code 12345678 \
-  --device-hotspot-ssid DAWON_IRBD_AABBCC \
+  --device-hotspot-ssid DWD-S120_AABBCC \
   --home-ssid MyHomeWifi \
   --home-password 'p@ss'
 ```

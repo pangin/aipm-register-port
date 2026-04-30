@@ -19,7 +19,7 @@
 |---|---|---|---|
 | PC → device | `<device-AP-gateway>:5000` | `{"mac":..., "api_server_addr":"dwapi.dawonai.com", ..., "ssid":..., "pass":..., "lati":..., "long":...}` (line 1864) | 평문 TCP, 디바이스가 hotspot AP 일 때만 |
 
-**device_id 합성**: `DAWONDNS-<model>-<MAC>`. `<model>` 은 응답 첫 메시지의 어딘가에서 추출 (line 1862, `_3(string)` line 2106).
+**device_id 합성**: `DAWONDNS-<model>-<MAC>`. `<model>` 은 선택된 장치 hotspot SSID를 `_3(string)`에 넣어 추출한다 (line 1862, `_3(string)` line 2106). TCP 응답 문자열은 모델 코드로 쓰지 않는다.
 
 ## 3. .NET BCL (그대로 .NET 8 가능)
 

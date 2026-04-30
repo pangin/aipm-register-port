@@ -7,8 +7,8 @@ namespace AipmRegister.Core.Devices;
 /// BeginConnect / GetStream code in frmMain (around lines 1779, 1856).
 public interface IDeviceTcpSender
 {
-    /// Connects, sends the settings, returns whatever the device replies
-    /// (typically the model identifier).
+    /// Connects, sends the legacy START line and settings payload, then returns
+    /// whatever the device replies (typically START_OK plus respone/response OK).
     Task<string> SendSettingsAsync(
         string deviceHost,
         int port,

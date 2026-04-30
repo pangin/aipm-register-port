@@ -1,5 +1,6 @@
 using AipmRegister.Core.Api;
 using AipmRegister.Core.Models;
+using System.Text.Json;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;
@@ -50,6 +51,15 @@ public sealed class RegisterApiClientTests : IDisposable
         Assert.Equal("k1",  account.PcKey);
         Assert.Equal("37.5", account.Latitude);
         Assert.Equal("127.0", account.Longitude);
+
+        var request = _mock.LogEntries.Single().RequestMessage;
+        Assert.NotNull(request);
+        var sentBody = request.Body;
+        Assert.NotNull(sentBody);
+        using var sent = JsonDocument.Parse(sentBody);
+        Assert.True(sent.RootElement.TryGetProperty("account", out var sentAccount));
+        Assert.False(sent.RootElement.TryGetProperty("Account", out _));
+        Assert.Equal("12345678", sentAccount.GetProperty("pc_temp_key").GetString());
     }
 
     [Fact]
@@ -76,5 +86,23 @@ public sealed class RegisterApiClientTests : IDisposable
 
         Assert.Equal(ControlCheckOutcome.Success, outcome);
         Assert.Contains("/100/0/31", raw);
+
+        var request = _mock.LogEntries.Single().RequestMessage;
+        Assert.NotNull(request);
+        var sentBody = request.Body;
+        Assert.NotNull(sentBody);
+        using var sent = JsonDocument.Parse(sentBody);
+        Assert.True(sent.RootElement.TryGetProperty("account", out var sentAccount));
+        Assert.True(sent.RootElement.TryGetProperty("devices", out var sentDevices));
+        Assert.False(sent.RootElement.TryGetProperty("Account", out _));
+        Assert.False(sent.RootElement.TryGetProperty("Devices", out _));
+        Assert.Equal("u1", sentAccount.GetProperty("user_id").GetString());
+        Assert.Equal("k1", sentAccount.GetProperty("pc_key").GetString());
+
+        var device = sentDevices[0];
+        Assert.Equal("DAWONDNS-MODEL-AABBCC", device.GetProperty("device_id").GetString());
+        Assert.True(device.TryGetProperty("msg", out var msg));
+        Assert.False(device.TryGetProperty("Msg", out _));
+        Assert.Equal("r", msg.GetProperty("o").GetString());
     }
 }

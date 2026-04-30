@@ -51,6 +51,53 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: configure macOS signing certificate
+        if: matrix.is_mac == true
+        shell: bash
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+        run: |
+          if [ -z "$MACOS_CERTIFICATE_P12_BASE64" ] &&
+             [ -z "$MACOS_CERTIFICATE_PASSWORD" ] &&
+             [ -z "$MACOS_CODESIGN_IDENTITY" ]; then
+            echo "MACOS_SIGNING_CONFIGURED=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          if [ -z "$MACOS_CERTIFICATE_P12_BASE64" ] ||
+             [ -z "$MACOS_CERTIFICATE_PASSWORD" ] ||
+             [ -z "$MACOS_CODESIGN_IDENTITY" ]; then
+            echo "::error::Set MACOS_CERTIFICATE_P12_BASE64, MACOS_CERTIFICATE_PASSWORD, and MACOS_CODESIGN_IDENTITY together."
+            exit 1
+          fi
+
+          CERTIFICATE_PATH="$RUNNER_TEMP/macos-signing-certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/aipm-register-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          echo "$MACOS_CERTIFICATE_P12_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          echo "MACOS_SIGNING_CONFIGURED=true" >> "$GITHUB_ENV"
+          echo "MACOS_CODESIGN_IDENTITY=$MACOS_CODESIGN_IDENTITY" >> "$GITHUB_ENV"
+          echo "MACOS_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
       # ---------- CLI (self-contained single-file) ----------
       - name: publish CLI
         shell: bash
@@ -105,15 +152,17 @@ jobs:
       - name: bundle GUI as .app (macOS)
         if: matrix.is_mac == true
         shell: bash
+        env:
+          MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+          MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
         run: |
           BUNDLE="out/gui/AipmRegister.app"
           mkdir -p "$BUNDLE/Contents/MacOS"
           mkdir -p "$BUNDLE/Contents/Resources"
 
-          # Move every published artifact into the .app bundle's MacOS dir.
-          # The single-file binary is the launchable; native libs were
-          # extracted by IncludeNativeLibrariesForSelfExtract=false earlier
-          # but for GUIs Avalonia ships a few sidecars regardless.
+          # The single-file binary is the launchable; native libraries are
+          # packed for self-extraction by the publish step.
           cp -R out/gui/AipmRegister.Gui "$BUNDLE/Contents/MacOS/AipmRegister"
           chmod +x "$BUNDLE/Contents/MacOS/AipmRegister"
 
@@ -138,6 +187,53 @@ jobs:
           </dict>
           </plist>
           PLIST
+
+          # Sign the final app bundle, not just the published Mach-O. Without
+          # this, Gatekeeper sees an incomplete resource envelope after the
+          # executable is moved into Contents/MacOS.
+          if [ "${MACOS_SIGNING_CONFIGURED:-false}" = "true" ]; then
+            codesign --force \
+              --deep \
+              --timestamp \
+              --options runtime \
+              --entitlements build/macos/AipmRegister.entitlements \
+              --keychain "$MACOS_KEYCHAIN_PATH" \
+              --sign "$MACOS_CODESIGN_IDENTITY" \
+              "$BUNDLE"
+          else
+            codesign --force --deep --sign - "$BUNDLE"
+          fi
+
+          codesign --verify --deep --strict --verbose=4 "$BUNDLE"
+
+          NOTARY_SECRET_COUNT=0
+          [ -n "$MACOS_NOTARY_APPLE_ID" ] && NOTARY_SECRET_COUNT=$((NOTARY_SECRET_COUNT + 1))
+          [ -n "$MACOS_NOTARY_PASSWORD" ] && NOTARY_SECRET_COUNT=$((NOTARY_SECRET_COUNT + 1))
+          [ -n "$MACOS_NOTARY_TEAM_ID" ] && NOTARY_SECRET_COUNT=$((NOTARY_SECRET_COUNT + 1))
+
+          if [ "$NOTARY_SECRET_COUNT" -gt 0 ] && [ "$NOTARY_SECRET_COUNT" -lt 3 ]; then
+            echo "::error::Set MACOS_NOTARY_APPLE_ID, MACOS_NOTARY_PASSWORD, and MACOS_NOTARY_TEAM_ID together."
+            exit 1
+          fi
+
+          if [ "$NOTARY_SECRET_COUNT" -eq 3 ] &&
+             [ "${MACOS_SIGNING_CONFIGURED:-false}" != "true" ]; then
+            echo "::error::Notarization requires a Developer ID signing certificate."
+            exit 1
+          fi
+
+          if [ "${MACOS_SIGNING_CONFIGURED:-false}" = "true" ] &&
+             [ "$NOTARY_SECRET_COUNT" -eq 3 ]; then
+            NOTARY_ZIP="out/gui/aipm-register-gui-${{ matrix.suffix }}-notary.zip"
+            ditto -c -k --sequesterRsrc --keepParent "$BUNDLE" "$NOTARY_ZIP"
+            xcrun notarytool submit "$NOTARY_ZIP" \
+              --apple-id "$MACOS_NOTARY_APPLE_ID" \
+              --password "$MACOS_NOTARY_PASSWORD" \
+              --team-id "$MACOS_NOTARY_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$BUNDLE"
+            xcrun stapler validate "$BUNDLE"
+          fi
 
           # Zip the .app so it survives the GitHub Releases upload (which
           # treats directories as files only via tarballs/zips).

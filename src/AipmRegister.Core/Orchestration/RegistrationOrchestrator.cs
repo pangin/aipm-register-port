@@ -1,7 +1,10 @@
 using System.Runtime.CompilerServices;
+using System.Net.Http;
+using System.Net.Sockets;
 using AipmRegister.Core.Api;
 using AipmRegister.Core.Devices;
 using AipmRegister.Core.Models;
+using AipmRegister.Core.Network;
 using AipmRegister.Core.Notification;
 using AipmRegister.Core.Wifi;
 using Microsoft.Extensions.Logging;
@@ -14,6 +17,7 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
     private readonly IDeviceTcpSender _tcp;
     private readonly IUserNotifier _notifier;
     private readonly BackendOptions _backend;
+    private readonly IInternetReachabilityProbe _reachability;
     private readonly ILogger<RegistrationOrchestrator> _logger;
 
     public RegistrationOrchestrator(
@@ -21,12 +25,14 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         IDeviceTcpSender tcp,
         IUserNotifier notifier,
         BackendOptions backend,
+        IInternetReachabilityProbe reachability,
         ILogger<RegistrationOrchestrator> logger)
     {
         _api = api;
         _tcp = tcp;
         _notifier = notifier;
         _backend = backend;
+        _reachability = reachability;
         _logger = logger;
     }
 
@@ -46,20 +52,12 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         CancellationToken ct = default)
     {
         var mac = HotspotSsidParser.ExtractMac(deviceHotspotSsid);
-        var settings = BuildDeviceSettings(account, homeSsid, homePassword, mac, picked.ModelCode);
+        var modelCode = ProductCatalog.ResolveModelCode(deviceHotspotSsid, picked);
+        var settings = BuildDeviceSettings(account, homeSsid, homePassword, mac, modelCode);
         var reply = await _tcp.SendSettingsAsync(deviceTcpHost, deviceTcpPort, settings, ct);
-
-        // The device replies with its own SSID-style identifier; resolve via
-        // the catalog so our model code matches what the cloud assigns.
-        var trimmedReply = reply?.Trim().Trim('"') ?? string.Empty;
-        var modelCode = string.IsNullOrEmpty(trimmedReply)
-            ? picked.ModelCode
-            : ProductCatalog.ResolveModelCode(trimmedReply, picked);
-        if (string.IsNullOrEmpty(modelCode))
+        if (!string.IsNullOrWhiteSpace(reply))
         {
-            // Catalog had no matching SKU — preserve v0.3 behavior of using
-            // whatever the device reported back as the model.
-            modelCode = string.IsNullOrEmpty(trimmedReply) ? picked.ModelCode : trimmedReply;
+            _logger.LogDebug("Device TCP reply: {Reply}", reply.Trim());
         }
 
         var deviceId = $"{_backend.Company}-{modelCode}-{mac}";
@@ -81,19 +79,83 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
             WifiSecurity.Open,
             ct);
 
-        _notifier.Progress(RegistrationStage.Device, $"Pushing settings to device at {request.DeviceTcpHost}:{request.DeviceTcpPort}...");
-        var info = await SendDeviceSettingsAsync(
-            account, picked,
-            request.DeviceHotspotSsid,
-            request.HomeSsid, request.HomePassword,
-            request.DeviceTcpHost, request.DeviceTcpPort,
-            ct);
+        var info = await SendDeviceSettingsWithGatewayRefreshAsync(account, picked, request, wifi, ct);
 
         await wifi.DisconnectAndForgetAsync(request.DeviceHotspotSsid, ct);
         _notifier.Progress(RegistrationStage.Wifi, $"Rejoining home network \"{request.HomeSsid}\"...");
-        await wifi.ConnectAsync(request.HomeSsid, request.HomePassword, WifiSecurity.Wpa2Personal, ct);
+        await wifi.ConnectAsync(request.HomeSsid, request.HomePassword, request.HomeSecurity, ct);
+        _notifier.Progress(RegistrationStage.Wifi, $"Waiting for internet on \"{request.HomeSsid}\"...");
+        await _reachability.WaitUntilReachableAsync(_backend.ApiHost, _backend.ApiPort, TimeSpan.FromSeconds(30), ct);
 
         return info;
+    }
+
+    private async Task<DeviceModelInfo> SendDeviceSettingsWithGatewayRefreshAsync(
+        Account account,
+        ProductDefinition picked,
+        RegistrationRequest request,
+        IWifiAdapter wifi,
+        CancellationToken ct)
+    {
+        var deviceTcpHost = await ResolveDeviceTcpHostAsync(wifi, request, ct);
+
+        try
+        {
+            return await PushDeviceSettingsAsync(account, picked, request, deviceTcpHost, ct);
+        }
+        catch (Exception ex) when (IsTransientNetworkError(ex))
+        {
+            var refreshedHost = await ResolveDeviceTcpHostAsync(wifi, request, ct);
+            if (string.Equals(refreshedHost, deviceTcpHost, StringComparison.Ordinal))
+            {
+                throw;
+            }
+
+            _logger.LogWarning(
+                ex,
+                "Device TCP push failed at {OldHost}; retrying with refreshed gateway {NewHost}.",
+                deviceTcpHost,
+                refreshedHost);
+
+            return await PushDeviceSettingsAsync(account, picked, request, refreshedHost, ct);
+        }
+    }
+
+    private Task<DeviceModelInfo> PushDeviceSettingsAsync(
+        Account account,
+        ProductDefinition picked,
+        RegistrationRequest request,
+        string deviceTcpHost,
+        CancellationToken ct)
+    {
+        _notifier.Progress(RegistrationStage.Device, $"Pushing settings to device at {deviceTcpHost}:{request.DeviceTcpPort}...");
+        return SendDeviceSettingsAsync(
+            account, picked,
+            request.DeviceHotspotSsid,
+            request.HomeSsid, request.HomePassword,
+            deviceTcpHost, request.DeviceTcpPort,
+            ct);
+    }
+
+    private async Task<string> ResolveDeviceTcpHostAsync(
+        IWifiAdapter wifi,
+        RegistrationRequest request,
+        CancellationToken ct)
+    {
+        if (wifi is not IWifiGatewayProvider gatewayProvider) return request.DeviceTcpHost;
+
+        var gateway = await gatewayProvider.GetGatewayAsync(TimeSpan.FromSeconds(20), ct);
+        if (string.IsNullOrWhiteSpace(gateway)) return request.DeviceTcpHost;
+
+        if (!string.Equals(gateway, request.DeviceTcpHost, StringComparison.Ordinal))
+        {
+            _logger.LogInformation(
+                "Using Wi-Fi gateway {Gateway} as device TCP host instead of configured host {ConfiguredHost}.",
+                gateway,
+                request.DeviceTcpHost);
+        }
+
+        return gateway;
     }
 
     public async IAsyncEnumerable<ControlCheckTick> PollRegistrationAsync(
@@ -107,7 +169,20 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
             ct.ThrowIfCancellationRequested();
-            var (outcome, raw) = await _api.ControlCheckAsync(account, deviceId, ct);
+            ControlCheckOutcome outcome;
+            string raw;
+
+            try
+            {
+                (outcome, raw) = await _api.ControlCheckAsync(account, deviceId, ct);
+            }
+            catch (Exception ex) when (IsTransientNetworkError(ex))
+            {
+                _logger.LogWarning(ex, "control/check attempt {Attempt}/{Max} failed while the network is recovering.", attempt, maxAttempts);
+                outcome = ControlCheckOutcome.Pending;
+                raw = ex.Message;
+            }
+
             _logger.LogDebug("Attempt {Attempt}/{Max}: {Outcome}", attempt, maxAttempts, outcome);
 
             yield return new ControlCheckTick(attempt, maxAttempts, outcome, raw);
@@ -216,4 +291,27 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         Latitude:          account.Latitude,
         Longitude:         account.Longitude,
         Topic:             _backend.Topic);
+
+    private static bool IsTransientNetworkError(Exception ex)
+    {
+        if (ex is HttpRequestException or IOException) return true;
+
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            if (current is SocketException socketException && IsTransientSocketError(socketException.SocketErrorCode))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsTransientSocketError(SocketError error)
+        => error is SocketError.NetworkUnreachable
+            or SocketError.HostUnreachable
+            or SocketError.HostNotFound
+            or SocketError.TryAgain
+            or SocketError.TimedOut
+            or SocketError.ConnectionRefused;
 }

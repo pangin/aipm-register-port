@@ -18,9 +18,9 @@ public sealed class LocalizationTests
     {
         var loc = new AipmRegister.Gui.Localization.Localization();
         loc.SetLanguage(AppLanguage.En);
-        Assert.Equal("EN", loc["Lang.Toggle"] is string s && s.Length == 2 ? "EN" : loc["Lang.Toggle"]);
+        Assert.Equal("한국어", loc["Lang.Toggle"]);
         // The Ko dictionary's Lang.Toggle is "EN" (the toggle button shows
-        // the *other* language); after switching to En it becomes "KO".
+        // the *other* language); after switching to En it becomes "한국어".
         // Either way the string changes — assert Ko/En dictionaries
         // produce different values for at least one stable key.
         var ko = new AipmRegister.Gui.Localization.Localization();

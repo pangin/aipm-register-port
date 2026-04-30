@@ -21,6 +21,7 @@ public partial class WizardState : ObservableObject
 
     [ObservableProperty] private string  homeSsid           = string.Empty;
     [ObservableProperty] private string  homePassword       = string.Empty;
+    [ObservableProperty] private WifiSecurity homeSecurity  = WifiSecurity.Wpa2Personal;
     [ObservableProperty] private string  authCode           = string.Empty;
 
     /// Filled in step 2/5 after `getPckey`.

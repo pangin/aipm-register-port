@@ -1,6 +1,9 @@
+using System.Net.Http;
+using System.Net.Sockets;
 using AipmRegister.Core.Api;
 using AipmRegister.Core.Devices;
 using AipmRegister.Core.Models;
+using AipmRegister.Core.Network;
 using AipmRegister.Core.Notification;
 using AipmRegister.Core.Orchestration;
 using AipmRegister.Core.Wifi;
@@ -32,14 +35,14 @@ public sealed class RegistrationOrchestratorTests
             api: new StubApi(
                 getPcKey:    _ => Task.FromResult<Account?>(account),
                 controlCheck:(_, _) => Task.FromResult((ControlCheckOutcome.Success, "raw"))),
-            tcp: new StubTcp(reply: "MODEL_X"));
+            tcp: new StubTcp(reply: "{\"respone\":\"OK\"}"));
 
         var result = await sut.RunAsync(SampleRequest(), new StubWifi());
 
         Assert.Equal(RegistrationStatus.Succeeded, result.Status);
         Assert.Equal("u1", result.UserId);
         Assert.NotNull(result.DeviceId);
-        Assert.StartsWith("DAWONDNS-MODEL_X-", result.DeviceId);
+        Assert.StartsWith("DAWONDNS-B530_W-", result.DeviceId);
     }
 
     [Fact]
@@ -50,7 +53,7 @@ public sealed class RegistrationOrchestratorTests
             api: new StubApi(
                 getPcKey:    _ => Task.FromResult<Account?>(account),
                 controlCheck:(_, _) => Task.FromResult((ControlCheckOutcome.AlreadyRegistered, "STATUSERROR"))),
-            tcp: new StubTcp(reply: "MODEL_X"));
+            tcp: new StubTcp(reply: "{\"respone\":\"OK\"}"));
 
         var result = await sut.RunAsync(SampleRequest(), new StubWifi());
         Assert.Equal(RegistrationStatus.AlreadyRegistered, result.Status);
@@ -69,24 +72,126 @@ public sealed class RegistrationOrchestratorTests
         Assert.Contains("connection refused", result.Message);
     }
 
+    [Fact]
+    public async Task SendDeviceSettings_Derives_Model_And_DeviceId_From_Selected_Hotspot_Not_Tcp_Reply()
+    {
+        var account = new Account("u1", "k1", "37", "127");
+        var tcp = new StubTcp(reply: "{\"respone\":\"OK\"}");
+        var sut = BuildSut(tcp: tcp);
+        var picked = ProductCatalog.All.Single(p => p.Tag == "S120");
+
+        var info = await sut.SendDeviceSettingsAsync(
+            account,
+            picked,
+            "DWD-LS120_AABBCC",
+            "HOME_AP",
+            "homepass",
+            "192.168.4.1",
+            5000);
+
+        Assert.Equal("B540_W", info.Model);
+        Assert.Equal("DAWONDNS-B540_W-AABBCC", info.DeviceId);
+        Assert.Equal("B540_W", tcp.LastSettings?.Model);
+    }
+
+    [Fact]
+    public async Task HandOffToDevice_Uses_WifiGateway_As_DeviceTcpHost()
+    {
+        var account = new Account("u1", "k1", "37", "127");
+        var tcp = new StubTcp(reply: "{\"respone\":\"OK\"}");
+        var sut = BuildSut(tcp: tcp);
+
+        await sut.HandOffToDeviceAsync(
+            account,
+            ProductCatalog.All[0],
+            SampleRequest(),
+            new StubWifi("192.168.8.1"));
+
+        Assert.Equal("192.168.8.1", tcp.LastDeviceHost);
+    }
+
+    [Fact]
+    public async Task HandOffToDevice_ReResolvesGateway_When_FirstTcpPushUsesStaleGateway()
+    {
+        var account = new Account("u1", "k1", "37", "127");
+        var tcp = new StubTcp(
+            reply: "{\"respone\":\"OK\"}",
+            throwForHost: host => host == "192.168.0.1" ? new IOException("Network unreachable") : null);
+        var sut = BuildSut(tcp: tcp);
+
+        await sut.HandOffToDeviceAsync(
+            account,
+            ProductCatalog.All[0],
+            SampleRequest(),
+            new StubWifi("192.168.0.1", "192.168.8.1"));
+
+        Assert.Equal(new[] { "192.168.0.1", "192.168.8.1" }, tcp.SentHosts);
+    }
+
+    [Fact]
+    public async Task HandOffToDevice_Waits_ForInternet_After_RejoiningHomeNetwork()
+    {
+        var account = new Account("u1", "k1", "37", "127");
+        var reachability = new RecordingReachabilityProbe();
+        var wifi = new StubWifi("192.168.8.1");
+        var sut = BuildSut(reachability: reachability);
+
+        await sut.HandOffToDeviceAsync(account, ProductCatalog.All[0], SampleRequest(), wifi);
+
+        Assert.Equal(new[] { "DWD-S120_AABBCC", "HOME_AP" }, wifi.ConnectedSsids);
+        Assert.Equal("dwapi.dawonai.com", reachability.LastHost);
+        Assert.Equal(18443, reachability.LastPort);
+    }
+
+    [Fact]
+    public async Task RunAsync_Retries_Transient_Network_Error_During_ControlCheck()
+    {
+        var account = new Account("u1", "k1", "37", "127");
+        var controlCheckCalls = 0;
+        var sut = BuildSut(
+            api: new StubApi(
+                getPcKey: _ => Task.FromResult<Account?>(account),
+                controlCheck: (_, _) =>
+                {
+                    controlCheckCalls++;
+                    if (controlCheckCalls == 1)
+                    {
+                        var socket = new SocketException((int)SocketError.NetworkUnreachable);
+                        throw new HttpRequestException("Network unreachable", socket);
+                    }
+
+                    return Task.FromResult((ControlCheckOutcome.Success, "raw"));
+                }),
+            reachability: new NoopReachabilityProbe());
+
+        var result = await sut.RunAsync(
+            SampleRequest() with { PollInterval = TimeSpan.FromMilliseconds(1) },
+            new StubWifi("192.168.8.1"));
+
+        Assert.Equal(RegistrationStatus.Succeeded, result.Status);
+        Assert.Equal(2, controlCheckCalls);
+    }
+
     private static RegistrationRequest SampleRequest() => new(
         AuthCode8Digits:       "12345678",
         HomeSsid:              "HOME_AP",
         HomePassword:          "homepass",
-        DeviceHotspotSsid:     "DAWON_IRBD_AABBCC",
+        DeviceHotspotSsid:     "DWD-S120_AABBCC",
         DeviceHotspotPassword: "",
         PollInterval:          TimeSpan.FromMilliseconds(1));
 
     private static RegistrationOrchestrator BuildSut(
         IRegisterApiClient? api = null,
         IDeviceTcpSender? tcp = null,
-        IUserNotifier? notifier = null)
+        IUserNotifier? notifier = null,
+        IInternetReachabilityProbe? reachability = null)
     {
         return new RegistrationOrchestrator(
             api ?? new StubApi(),
             tcp ?? new StubTcp(reply: "MODEL_X"),
             notifier ?? new TestNotifier(),
             new BackendOptions(),
+            reachability ?? new NoopReachabilityProbe(),
             NullLogger<RegistrationOrchestrator>.Instance);
     }
 
@@ -115,23 +220,71 @@ public sealed class RegistrationOrchestratorTests
     {
         private readonly string _reply;
         private readonly Exception? _throws;
-        public StubTcp(string reply = "", Exception? throws = null)
+        private readonly Func<string, Exception?>? _throwForHost;
+        public string? LastDeviceHost { get; private set; }
+        public DeviceSettings? LastSettings { get; private set; }
+        public List<string> SentHosts { get; } = new();
+        public StubTcp(string reply = "", Exception? throws = null, Func<string, Exception?>? throwForHost = null)
         {
             _reply = reply;
             _throws = throws;
+            _throwForHost = throwForHost;
         }
-        public Task<string> SendSettingsAsync(string deviceHost, int port, DeviceSettings settings, CancellationToken ct = default)
-            => _throws is null ? Task.FromResult(_reply) : Task.FromException<string>(_throws);
+        public Task<string> SendSettingsAsync(
+            string deviceHost,
+            int port,
+            DeviceSettings settings,
+            CancellationToken ct = default)
+        {
+            LastDeviceHost = deviceHost;
+            LastSettings = settings;
+            SentHosts.Add(deviceHost);
+            var error = _throwForHost?.Invoke(deviceHost) ?? _throws;
+            return error is null ? Task.FromResult(_reply) : Task.FromException<string>(error);
+        }
     }
 
-    private sealed class StubWifi : IWifiAdapter
+    private sealed class StubWifi : IWifiAdapter, IWifiGatewayProvider
     {
+        private readonly Queue<string?> _gateways;
+        public List<string> ConnectedSsids { get; } = new();
+
+        public StubWifi(params string?[] gateways) => _gateways = new Queue<string?>(gateways);
+
         public Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<WifiNetwork>>(Array.Empty<WifiNetwork>());
         public Task ConnectAsync(string ssid, string password, WifiSecurity security, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            ConnectedSsids.Add(ssid);
+            return Task.CompletedTask;
+        }
         public Task DisconnectAndForgetAsync(string ssid, CancellationToken ct = default)
             => Task.CompletedTask;
+        public Task<string?> GetGatewayAsync(TimeSpan timeout, CancellationToken ct = default)
+        {
+            if (_gateways.Count == 0) return Task.FromResult<string?>(null);
+            if (_gateways.Count == 1) return Task.FromResult(_gateways.Peek());
+            return Task.FromResult(_gateways.Dequeue());
+        }
+    }
+
+    private sealed class NoopReachabilityProbe : IInternetReachabilityProbe
+    {
+        public Task WaitUntilReachableAsync(string host, int port, TimeSpan timeout, CancellationToken ct = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class RecordingReachabilityProbe : IInternetReachabilityProbe
+    {
+        public string? LastHost { get; private set; }
+        public int LastPort { get; private set; }
+
+        public Task WaitUntilReachableAsync(string host, int port, TimeSpan timeout, CancellationToken ct = default)
+        {
+            LastHost = host;
+            LastPort = port;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class TestNotifier : IUserNotifier

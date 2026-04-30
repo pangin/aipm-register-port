@@ -33,9 +33,14 @@ public static class WifiBandClassifier
     public static string FromChannel(string? channel)
     {
         if (string.IsNullOrEmpty(channel)) return Unknown;
-        if (channel.Contains("6 GHz", StringComparison.OrdinalIgnoreCase)) return Band6;
-        if (channel.Contains("5 GHz", StringComparison.OrdinalIgnoreCase)) return Band5;
-        if (channel.Contains("2.4",   StringComparison.OrdinalIgnoreCase)) return Band24;
+        var compact = channel.Replace(" ", string.Empty, StringComparison.Ordinal);
+        if (compact.Contains("6GHz",   StringComparison.OrdinalIgnoreCase)) return Band6;
+        if (compact.Contains("5GHz",   StringComparison.OrdinalIgnoreCase)) return Band5;
+        if (compact.Contains("2.4GHz", StringComparison.OrdinalIgnoreCase)
+            || compact.Contains("2GHz", StringComparison.OrdinalIgnoreCase))
+        {
+            return Band24;
+        }
 
         // Numeric channel only — fall back to canonical bands.
         var token = channel.Split(',', '(', ' ')[0].Trim();

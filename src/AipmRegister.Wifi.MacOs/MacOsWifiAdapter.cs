@@ -10,7 +10,7 @@ namespace AipmRegister.Wifi.MacOs;
 /// specific Wi-Fi interface (e.g. "en0") chosen by the caller via
 /// <see cref="MacOsWifiAdapterFactory"/>.
 [SupportedOSPlatform("macos")]
-public sealed class MacOsWifiAdapter : IWifiAdapter
+public sealed class MacOsWifiAdapter : IWifiAdapter, IWifiGatewayProvider
 {
     private readonly IProcessRunner _processRunner;
     private readonly ILogger<MacOsWifiAdapter> _logger;
@@ -26,8 +26,12 @@ public sealed class MacOsWifiAdapter : IWifiAdapter
 
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken ct = default)
     {
-        var raw = await NetworksetupRunner.RunSystemProfilerAsync(_processRunner, ct);
-        return SystemProfilerParser.Parse(raw);
+        MacOsLocationPermission.RequestWhenInUseAuthorizationForBundledApp(_logger);
+
+        var networks = await Task.Run(() => CoreWlanScanner.Scan(_interfaceName), ct);
+
+        _logger.LogInformation("Found {Count} Wi-Fi networks on interface {Iface}", networks.Count, _interfaceName);
+        return networks;
     }
 
     public async Task ConnectAsync(string ssid, string password, WifiSecurity security, CancellationToken ct = default)
@@ -43,7 +47,45 @@ public sealed class MacOsWifiAdapter : IWifiAdapter
         {
             throw new InvalidOperationException($"networksetup refused to associate with '{ssid}': {output.Trim()}");
         }
-        _logger.LogInformation("Connected to SSID={Ssid}", ssid);
+
+        var gateway = await GetGatewayAsync(TimeSpan.FromSeconds(20), ct);
+        _logger.LogInformation("Connected to SSID={Ssid}; gateway={Gateway}", ssid, gateway ?? "-");
+    }
+
+    public async Task<string?> GetGatewayAsync(TimeSpan timeout, CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        Exception? lastError = null;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var result = await _processRunner.RunAsync("ipconfig", new[] { "getpacket", _interfaceName }, ct);
+                if (result.ExitCode == 0)
+                {
+                    var router = MacOsDhcpLeaseParser.ParseRouter(result.Stdout);
+                    if (!string.IsNullOrWhiteSpace(router)) return router;
+                }
+                else
+                {
+                    lastError = new InvalidOperationException(result.Stderr.Trim());
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                lastError = ex;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+        }
+
+        if (lastError is not null)
+        {
+            _logger.LogWarning(lastError, "Could not read gateway for Wi-Fi interface {Iface}.", _interfaceName);
+        }
+        return null;
     }
 
     public async Task DisconnectAndForgetAsync(string ssid, CancellationToken ct = default)
