@@ -39,10 +39,9 @@ public partial class AuthCodeViewModel : ObservableObject
     private bool isBusy;
 
     [RelayCommand(CanExecute = nameof(CanVerify))]
-    private async Task VerifyAsync()
-    {
-        IsBusy = true;
-        try
+    private Task VerifyAsync() => BusyAsync.RunAsync(
+        b => IsBusy = b, _notifier, "Auth verification failed.",
+        async () =>
         {
             var account = await _orchestrator.ExchangeAuthCodeAsync(AuthCode);
             if (account is null)
@@ -54,16 +53,7 @@ public partial class AuthCodeViewModel : ObservableObject
             _state.Account = account;
             _state.AuthCode = AuthCode;
             LinkedAccount = account.UserId;
-        }
-        catch (Exception ex)
-        {
-            _notifier.Error("Auth verification failed.", ex);
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
+        });
 
     private bool CanVerify() => !IsBusy && AuthCode.Length == 8 && AuthCode.All(char.IsDigit);
 

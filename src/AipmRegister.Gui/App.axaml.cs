@@ -20,14 +20,15 @@ using Microsoft.Extensions.Logging;
 
 namespace AipmRegister.Gui;
 
-public partial class App : Application
+public partial class App : Application, ILocalizationProvider
 {
     public IHost? Host { get; private set; }
 
     /// Resolved from the DI host once <c>OnFrameworkInitializationCompleted</c>
     /// finishes its <c>Host.Build()</c>. <see cref="LocExtension"/> reaches
-    /// the service through this property; null until the build completes,
-    /// in which case the markup extension renders a loud placeholder.
+    /// the service through <see cref="ILocalizationProvider"/>; null until
+    /// the build completes, in which case the markup extension renders a
+    /// loud placeholder.
     public ILocalization? Localization { get; private set; }
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);

@@ -53,12 +53,11 @@ public partial class DevicePickerViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(CanRefresh))]
-    private async Task RefreshAsync()
-    {
-        if (_state.Product is null || _state.WifiAdapter is null) return;
-        IsBusy = true;
-        try
+    private Task RefreshAsync() => BusyAsync.RunAsync(
+        b => IsBusy = b, _notifier, "Device scan failed.",
+        async () =>
         {
+            if (_state.Product is null || _state.WifiAdapter is null) return;
             Devices.Clear();
             var found = await _state.WifiAdapter.ScanAsync();
             foreach (var n in found
@@ -70,16 +69,7 @@ public partial class DevicePickerViewModel : ObservableObject
                     Mac: HotspotSsidParser.ExtractMac(n.Ssid),
                     SignalQuality: n.SignalQuality));
             }
-        }
-        catch (Exception ex)
-        {
-            _notifier.Error("Device scan failed.", ex);
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
+        });
 
     private bool CanRefresh() => !IsBusy && _state.Product is not null;
 

@@ -337,7 +337,7 @@ Wi-Fi handling is fully automated on every supported OS:
 | M | Multi-wireless-interface selection (CLI + GUI)  | ✅ — `v1.3.0` |
 | N | Modularization audit (Hosting, parsers, factories) | ✅ — `v1.3.0` |
 | O | Apache-2.0 relicense + NOTICE                   | ✅ — `v1.3.0` |
-| P | Native AOT for the GUI (Avalonia trim cleanup)  | ⏳ — future |
+| P | Native AOT for the GUI (Avalonia trim cleanup)  | ✅ — `v1.7.0` |
 
 ---
 

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AOT trim roots for the GUI assembly.
+
+  Avalonia's runtime binding pipeline reaches the `Localization` indexer
+  via reflection (string path "[Key]"). When PublishAot strips members
+  it isn't sure are reachable, the indexer disappears and every
+  {loc:Loc Key} binding silently resolves to nothing — exactly what we
+  saw during the v1.6 AOT spike (MainWindowTitle was "Window" instead
+  of "AIPM Register").
+
+  Preserve every member of Localization and the supporting interfaces
+  so the binding plumbing keeps working in trimmed/AOT builds.
+-->
+<linker>
+  <assembly fullname="AipmRegister.Gui">
+    <type fullname="AipmRegister.Gui.Localization.Localization" preserve="all" />
+    <type fullname="AipmRegister.Gui.Localization.ILocalization" preserve="all" />
+    <type fullname="AipmRegister.Gui.Localization.ILocalizationProvider" preserve="all" />
+    <type fullname="AipmRegister.Gui.Localization.AppLanguage" preserve="all" />
+  </assembly>
+</linker>

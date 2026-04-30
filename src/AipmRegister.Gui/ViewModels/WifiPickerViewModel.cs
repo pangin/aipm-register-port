@@ -97,52 +97,32 @@ public partial class WifiPickerViewModel : ObservableObject
     }
 
     [RelayCommand(CanExecute = nameof(CanRefresh))]
-    private async Task RefreshAsync()
-    {
-        if (_state.WifiAdapter is null) return;
-        IsBusy = true;
-        try
+    private Task RefreshAsync() => BusyAsync.RunAsync(
+        b => IsBusy = b, _notifier, "Wi-Fi scan failed.",
+        async () =>
         {
+            if (_state.WifiAdapter is null) return;
             Networks.Clear();
             var found = await _state.WifiAdapter.ScanAsync();
             foreach (var n in found.OrderByDescending(x => x.SignalQuality))
             {
                 Networks.Add(n);
             }
-        }
-        catch (Exception ex)
-        {
-            _notifier.Error("Wi-Fi scan failed.", ex);
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
+        });
 
     private bool CanRefresh() => !IsBusy && _state.WifiAdapter is not null;
 
     [RelayCommand(CanExecute = nameof(CanConnect))]
-    private async Task ConnectAsync()
-    {
-        if (_state.WifiAdapter is null) return;
-        IsBusy = true;
-        try
+    private Task ConnectAsync() => BusyAsync.RunAsync(
+        b => IsBusy = b, _notifier, "Failed to connect.",
+        async () =>
         {
+            if (_state.WifiAdapter is null) return;
             await _state.WifiAdapter.ConnectAsync(
                 _state.HomeSsid, _state.HomePassword,
                 _state.HomeSecurity);
             _nav.Go(WizardStep.AuthCode);
-        }
-        catch (Exception ex)
-        {
-            _notifier.Error("Failed to connect.", ex);
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
+        });
 
     private bool CanConnect()
         => !IsBusy

@@ -37,7 +37,7 @@ public sealed class LocExtension : MarkupExtension
         Justification = "Bind path is a single string-indexer on ILocalization which is preserved via DI registration.")]
     public override object ProvideValue(IServiceProvider serviceProvider)
     {
-        var loc = (Application.Current as App)?.Localization;
+        var loc = (Application.Current as ILocalizationProvider)?.Localization;
         if (loc is null) return $"!{Key}!";
 
         // Wrap the indexer access in a ReflectionBindingExtension /
