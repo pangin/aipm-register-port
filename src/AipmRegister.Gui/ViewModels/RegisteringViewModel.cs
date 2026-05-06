@@ -44,8 +44,15 @@ public partial class RegisteringViewModel : ObservableObject
     [ObservableProperty] private int    progressMaximum = 20;
     [ObservableProperty] private string statusText = string.Empty;
     [ObservableProperty] private bool   succeeded;
-    [ObservableProperty] private bool   isBusy;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RetryCommand))]
+    private bool isBusy;
+
     [ObservableProperty] private bool   isLogVisible;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RetryCommand))]
+    private bool isRetryAvailable;
 
     [RelayCommand]
     private void ToggleLog() => IsLogVisible = !IsLogVisible;
@@ -55,9 +62,11 @@ public partial class RegisteringViewModel : ObservableObject
     /// Called by MainViewModel when the user enters step 5/5.
     public async Task RunAsync()
     {
+        if (IsBusy) return;
         if (_state.Account is null || _state.Product is null || _state.WifiAdapter is null) return;
 
         IsBusy = true;
+        IsRetryAvailable = false;
         ProgressValue = 0;
         StatusText = _l["Step5.InProgress"];
         Succeeded = false;
@@ -91,6 +100,7 @@ public partial class RegisteringViewModel : ObservableObject
                         return;
                     case ControlCheckOutcome.AlreadyRegistered:
                         StatusText = _l["Error.AlreadyRegistered"];
+                        IsRetryAvailable = true;
                         return;
                     case ControlCheckOutcome.AuthCodeExpired:
                         StatusText = _l["Error.AuthExpired"];
@@ -105,6 +115,7 @@ public partial class RegisteringViewModel : ObservableObject
             }
             // Loop ended without terminal — treat as not responding.
             StatusText = _l["Error.NotRegistered"];
+            IsRetryAvailable = true;
         }
         catch (OperationCanceledException)
         {
@@ -113,6 +124,7 @@ public partial class RegisteringViewModel : ObservableObject
         catch (Exception ex)
         {
             StatusText = ex.Message;
+            IsRetryAvailable = true;
             _notifier.Error("Registration failed.", ex);
         }
         finally
@@ -122,6 +134,11 @@ public partial class RegisteringViewModel : ObservableObject
             _cts = null;
         }
     }
+
+    private bool CanRetry() => !IsBusy && IsRetryAvailable;
+
+    [RelayCommand(CanExecute = nameof(CanRetry))]
+    private Task RetryAsync() => RunAsync();
 
     private RegistrationRequest BuildRequest() => new(
         AuthCode8Digits:        _state.AuthCode,

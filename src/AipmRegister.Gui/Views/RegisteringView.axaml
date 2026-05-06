@@ -54,11 +54,15 @@
       </ScrollViewer>
     </Border>
 
-    <Grid Grid.Row="5" ColumnDefinitions="*,Auto,*" ColumnSpacing="14">
-      <Button Grid.Column="0" HorizontalAlignment="Right" Padding="20,6"
+    <Grid Grid.Row="5" ColumnDefinitions="*,Auto,Auto,Auto,*" ColumnSpacing="10">
+      <Button Grid.Column="1" Padding="20,6"
               Command="{Binding BackCommand}"
               Content="{loc:Loc Step5.PrevButton}" />
-      <Button Grid.Column="2" HorizontalAlignment="Left" Padding="20,6"
+      <Button Grid.Column="2" Padding="20,6"
+              IsVisible="{Binding IsRetryAvailable}"
+              Command="{Binding RetryCommand}"
+              Content="{loc:Loc Step5.RetryButton}" />
+      <Button Grid.Column="3" Padding="20,6"
               Command="{Binding UnbindCommand}"
               Content="{loc:Loc Step5.UnbindButton}" />
     </Grid>

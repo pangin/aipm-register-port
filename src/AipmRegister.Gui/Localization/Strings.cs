@@ -63,6 +63,7 @@ internal static class Strings
         ["Step5.Done"]                     = "등록 완료",
         ["Step5.InProgress"]               = "등록 중...",
         ["Step5.PrevButton"]               = "이전 (제품 선택)",
+        ["Step5.RetryButton"]              = "등록 재시도",
         ["Step5.UnbindButton"]             = "계정 연동 해제",
         ["Step5.ShowDetailsButton"]        = "자세히 보기",
 
@@ -157,6 +158,7 @@ internal static class Strings
         ["Step5.Done"]                     = "Registration complete",
         ["Step5.InProgress"]               = "Registering...",
         ["Step5.PrevButton"]               = "Back (Product)",
+        ["Step5.RetryButton"]              = "Retry registration",
         ["Step5.UnbindButton"]             = "Unbind account",
         ["Step5.ShowDetailsButton"]        = "Show details",
 

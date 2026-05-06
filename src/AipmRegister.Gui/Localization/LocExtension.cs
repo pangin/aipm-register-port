@@ -36,6 +36,8 @@ public sealed class LocExtension : MarkupExtension
 
     public override object ProvideValue(IServiceProvider serviceProvider)
     {
+        if (serviceProvider is null) return $"!{Key}!";
+
         var loc = (Application.Current as ILocalizationProvider)?.Localization;
         if (loc is null) return $"!{Key}!";
 

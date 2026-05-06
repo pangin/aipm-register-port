@@ -69,9 +69,9 @@ public sealed class LocExtensionTests
     [Fact]
     public void ProvideValue_ReturnsBangPlaceholder_WhenLocalizationProviderIsAbsent()
     {
-        // No headless fixture → no Application.Current. The extension's
-        // designer-mode-safe path returns the literal "!Key!" placeholder
-        // so XAML preview / pre-DI-bootstrap renders don't throw.
+        // No XAML service provider means designer / pre-DI-bootstrap path.
+        // The extension returns a literal placeholder instead of touching
+        // Avalonia's global Application.Current.
         var ext = new LocExtension("App.Title");
         var result = ext.ProvideValue(serviceProvider: null!);
         Assert.Equal("!App.Title!", result);
